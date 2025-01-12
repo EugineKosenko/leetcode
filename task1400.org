@@ -1,0 +1,206 @@
+#+title: =Leetcode=, задача 1400
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task1400.rs
+  <<task1400:Декларації>>
+
+  <<task1400:Визначення>>
+
+  fn main() {
+      <<task1400:Дії>>
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task1400:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task1400:Дії
+  let args: Vec<String> = env::args().collect();
+  let source = args[1].to_string();
+  let k = args[2].parse::<i32>().unwrap();
+#+end_src
+
+* Еврістичний пошук
+
+Визначимо функцію вирішення.
+
+#+begin_src rust :noweb-ref task1400:Дії
+  println!("{}", can_construct(source, k));
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task1400:Визначення
+  fn can_construct(s: String, k: i32) -> bool {
+      let k = k as usize;
+      <<task1400:can-construct:Дії>>
+  }
+#+end_src
+
+Якщо довжина рядка менше ~k~, то правильних розкладів нема.
+
+#+begin_src rust :noweb-ref task1400:can-construct:Дії
+  if s.len() < k { return false; }
+#+end_src
+
+Якщо довжина рядка дорівнює ~k~, то існує рівно одне рішення.
+
+#+begin_src rust :noweb-ref task1400:can-construct:Дії
+  if s.len() == k { return true; }
+#+end_src
+
+Зберемо статистику використання літер.
+
+#+begin_src rust :noweb-ref task1400:Декларації
+  use std::collections::BTreeMap;
+#+end_src
+
+#+begin_src rust :noweb-ref task1400:can-construct:Дії
+  let mut stats = BTreeMap::new();
+  for ch in s.chars() {
+      ,*stats.entry(ch).or_default() += 1;
+  }
+#+end_src
+
+Підрахуємо тільки кількість непарних літер, оскільки тільки вони визначають необхідну кількість
+паліндромів. Якщо ~k~ менше кількості непарних літер, то правильних розкладів не існує.
+
+#+begin_src rust :noweb-ref task1400:can-construct:Дії
+  k >= stats.values().filter(|&cnt| cnt % 2 == 1).count()
+#+end_src
+
+* COMMENT Пошук розкладів
+
+Розклади генеруються рекурсивно, при цьому вони одразу перевіряються, і перший знайдений розклад завершує
+перебір успішно.
+
+#+begin_src rust :noweb-ref task1400:Дії
+  println!("{}", find(&source, k, Vec::new()));
+#+end_src
+
+Якщо під час перебіру жодного розкладу, що підходить, не знайдено, повертаємо ознаку невдалого перебору.
+
+#+begin_src rust :noweb yes :noweb-ref task1400:Визначення
+  fn find(source: &[char], k: usize, part: Vec<Vec<char>>) -> bool {
+      <<task1400:find:Дії>>
+      false
+  }
+#+end_src
+
+Якщо джерело пусте, а розклад досяг необхідного розміру, перевіряємо, що усі елементи розкладу дозволяють
+створення паліндрому.
+
+#+begin_src rust :noweb yes :noweb-ref task1400:find:Дії
+  if source.is_empty() {
+      if part.len() == k {
+          <<task1400:find:Перевірити-розклад>>
+      }
+      return false;
+  }
+#+end_src
+
+Виділимо в джерелі першу літеру.
+
+#+begin_src rust :noweb-ref task1400:find:Дії
+  let (ch, source) = (source[0], &source[1..]);
+#+end_src
+
+Окремо перевіряємо варіант з новим елементом розкладу.
+
+#+begin_src rust :noweb-ref task1400:Декларації
+  use std::iter;
+#+end_src
+
+#+begin_src rust :noweb-ref task1400:find:Дії
+  if part.len() < k - 1 {
+      if find(source, k, part.clone().into_iter().chain(iter::once(vec![ch])).collect()) { return true; }
+  } else {
+      if find(&[], k, part.clone().into_iter().chain(iter::once(source.to_vec())).collect()) { return true; }
+  }
+#+end_src
+
+Почергово додаємо виділену літеру до кожного елементу розкладу і рекурсивно перевіряємо його.
+
+#+begin_src rust :noweb-ref task1400:find:Дії
+  if (0..part.len()).any(|i| {
+      let part = part.iter().enumerate()
+          .map(|(j, item)| {
+              if i == j {
+                  (*item).iter().cloned().chain(iter::once(ch)).collect()
+              } else {
+                  (*item).clone()
+              }
+          })
+          .collect();
+      find(source, k, part)
+  }) {
+      return true;
+  }
+#+end_src
+
+* COMMENT Перевірка розкладу
+
+Для кожного елементу розкладу будуємо статистику використання літер у вигляді мапи (~BTreeMap~). Якщо в
+статистиці не більше однієї літери з непарною кількістю, то цей елемент допускає паліндроми, тобто, пошук
+є успішним.
+
+#+begin_src rust :noweb-ref task1400:Декларації
+  use std::collections::BTreeMap;
+#+end_src
+
+#+begin_src rust :noweb-ref task1400:find:Перевірити-розклад
+  return part.into_iter()
+      .all(|item| {
+          let mut stats = BTreeMap::new();
+          for ch in item {
+              ,*stats.entry(ch).or_default() += 1;
+          }
+          1 >= stats.values()
+              .filter(|&cnt| cnt % 2 == 1)
+              .count()
+      })
+#+end_src
+
+* Чернетка
+
+# Intuition
+<!-- Describe your first thoughts on how to solve this problem. -->
+Originally it searched all possible partitions and checked the items for palindromes. It is quite inefficient, so the solution was spied and implemented using a set of heuristics.
+
+# Approach
+<!-- Describe your approach to solving the problem. -->
+There are four essential cases:
+
+- if the source length bigger than `k`, there is no valid partition (`false`);
+
+- if the source length is equal `k`, there is only one possible partition of single-character items, which all are palindromes (`true`);
+
+- if the source length is less than `k`, count the number of each letter; the letters with even counts do not affect on the result, so select only odd counts; each odd count require a separate 
+
+# Complexity
+- Time complexity:
+<!-- Add your time complexity here, e.g. $$O(n)$$ -->
+
+- Space complexity:
+<!-- Add your space complexity here, e.g. $$O(n)$$ -->
+
+# Code
+```rust []
+use std::iter;
+use std::collections::BTreeMap;
+
+impl Solution {
+    pub fn can_construct(s: String, k: i32) -> bool {
+        let k = k as usize;
+        if s.len() < k { return false; }
+        if s.len() == k { return true; }
+        let mut stats = BTreeMap::new();
+        for ch in s.chars() {
+            *stats.entry(ch).or_default() += 1;
+        }
+        k >= stats.values().filter(|&cnt| cnt % 2 == 1).count()
+    }
+}
+```
