@@ -1,0 +1,107 @@
+#+title: =Leetcode=, задача =1368=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task1368.rs
+  <<task1368:Декларації>>
+
+  <<task1368:Визначення>>
+
+  fn main() {
+      let mut result = 0;
+      <<task1368:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task1368:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task1368:Дії
+  let args: Vec<String> = env::args().collect();
+  let grid: Vec<Vec<i32>> = args[1]
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split("],[")
+      .map(|row| row
+           .trim_start_matches('[')
+           .trim_end_matches(']')
+           .split(',')
+           .map(|item| item.parse().unwrap())
+           .collect())
+      .collect();
+#+end_src
+
+Для зручності визначимо розміри дошки.
+
+#+begin_src rust :noweb-ref task1368:Дії
+  let (rows, cols) = (grid.len(), grid[0].len());
+#+end_src
+
+* Призначеня вартості
+
+Визначимо множину точок, які вже відвідано. До неї одразу належить початкова точка ~(0, 0)~.
+
+#+begin_src rust :noweb-ref task1368:Декларації
+  use std::collections::HashSet;
+#+end_src
+
+#+begin_src rust :noweb-ref task1368:Дії
+  let mut visited = HashSet::from([(0, 0)]);
+#+end_src
+
+Створимо впорядковану чергу точок для розгляду. Черга впорядкована за вартістю і одразу містить початкову
+точку ~(0, 0)~ з вартістю ~0~.
+
+#+begin_src rust :noweb-ref task1368:Декларації
+  use std::collections::BTreeSet;
+#+end_src
+
+#+begin_src rust :noweb-ref task1368:Дії
+  let mut queue = BTreeSet::from([(0, (0, 0))]);
+#+end_src
+
+Перебираємо усі елементи черги, поки не вичерпаємо її (насправді, вихід відбудеться набагато раніше).
+
+#+begin_src rust :noweb yes :noweb-ref task1368:Дії
+  while let Some((cost, (r, c))) = queue.pop_first() {
+      <<task1368:Обробити-точку>>
+  }
+#+end_src
+
+Якщо це кінцева точка ~(rows - 1, cols - 1)~, результатом є її вартість ~cost~.
+
+#+begin_src rust :noweb-ref task1368:Обробити-точку
+  if (r, c) == (rows - 1, cols - 1) { result = cost; break; }
+#+end_src
+
+Додамо точку до множини відвіданих. Це попереджає зациклювання.
+
+#+begin_src rust :noweb-ref task1368:Обробити-точку
+  visited.insert((r, c));
+#+end_src
+
+Перебираємо усіх сусідів точки в межах дошки, які ще не відвідувалися. Кожну таку точку додаємо до
+множити точок, що відвідувалися, і до черги з відповідною вартістю.
+
+#+begin_src rust :noweb-ref task1368:Обробити-точку
+  for (dr, dc) in [(-1, 0), (0, 1), (1, 0), (0, -1)] {
+      let next = (r as isize + dr, c as isize + dc);
+      if next.0 < 0 || next.0 == rows as isize
+          || next.1 < 0 || next.1 == cols as isize { continue; }
+      let next = (next.0 as usize, next.1 as usize);
+      if visited.contains(&next) { continue; }
+      let cost = cost + match (dr, dc) {
+          (-1,  0) => if grid[r][c] == 4 { 0 } else { 1 },
+          ( 0,  1) => if grid[r][c] == 1 { 0 } else { 1 },
+          ( 1,  0) => if grid[r][c] == 3 { 0 } else { 1 },
+          ( 0, -1) => if grid[r][c] == 2 { 0 } else { 1 },
+          d => panic!("Invalid delta ({:?})", d)
+      };
+      queue.insert((cost, next));
+  }
+#+end_src
+
