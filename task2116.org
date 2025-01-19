@@ -1,0 +1,163 @@
+#+title: =Leetcode=, задача =2116=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task2116.rs
+  <<task2116:Декларації>>
+
+  <<task2116:Визначення>>
+
+  fn main() {
+      <<task2116:Дії>>
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task2116:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task2116:Дії
+  let args: Vec<String> = env::args().collect();
+  let source = args[1].to_string();
+  let locked = args[2].to_string();
+#+end_src
+
+* Еврістична перевірка
+
+Визначимо функцію вирішення.
+
+#+begin_src rust :noweb-ref task2116:Дії
+  println!("{}", can_be_valid(source, locked));
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task2116:Визначення
+  fn can_be_valid(s: String, locked: String) -> bool {
+      <<task2116:can-be-valid:Дії>>
+  }
+#+end_src
+
+Якщо джерело містить непарну кількість дужок, його неможливо представити правильно.
+
+#+begin_src rust :noweb yes :noweb-ref task2116:can-be-valid:Дії
+  if s.len() %2 == 1 { return false; }
+#+end_src
+
+Для ефективності створимо три множини (~BTreeSet~) позицій:
+
+- для /визначених/ (=locked=) лівих дужок (=left=);
+- для визначених правих дужок (=right=);
+- для /невизначених/ (=unlocked=) дужок.
+
+#+begin_src rust :noweb-ref task2116:Декларації
+  use std::collections::BTreeSet;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task2116:can-be-valid:Дії
+  let mut lefts = BTreeSet::new();
+  let mut rights = BTreeSet::new();
+  let mut unlockeds = BTreeSet::new();
+  for (p, (c, l)) in s.chars()
+      .zip(locked.chars())
+      .enumerate() {
+          match l {
+              '1' => match c {
+                  '(' => lefts.insert(p),
+                  ')' => rights.insert(p),
+                  c => panic!("Invalid char {}", c)
+              },
+              '0' => unlockeds.insert(p),
+              l => panic!("Invalid flag {}", l)
+          };
+      }
+#+end_src
+
+Переберемо праві дужки, і для кожної такої дужки знайдемо відповідну праву або невизначену дужку зліва
+від неї. Віддаємо перевагу визначеним лівим дужкам, оскільки їх не можна використовувати по
+іншому. Вилучаємо відповідні знайдені дужки.
+
+Важливо починати пошук саме, як підказано, по правих, а не по лівих дужках. При цьому треба знаходити
+*найближчу* ліву дужку, інакше в деяких випадках це не працює.
+
+#+begin_src rust :noweb yes :noweb-ref task2116:can-be-valid:Дії
+  for right in rights {
+      match lefts.range(..right).next_back().copied() {
+          None => match unlockeds.range(..right).next_back().copied() {
+              None => { return false; },
+              Some(unlocked) => { unlockeds.remove(&unlocked); }
+          },
+          Some(left) => { lefts.remove(&left); }
+      }
+  }
+#+end_src
+
+Перебираємо ліві дужки, що залишилися, і для кожної знаходимо та вилучаємо відповідну невизначену
+дужку. При цьому знаходимо *найближчу* невизначену дужку.
+
+#+begin_src rust :noweb yes :noweb-ref task2116:can-be-valid:Дії
+  for left in lefts {
+      match unlockeds.range(left..).next().copied() {
+          None => { return false; },
+          Some(unlocked) => { unlockeds.remove(&unlocked); }
+      }
+  }
+#+end_src
+
+Невизначені дужки, що залишилися, завжди можуть бути скомбіновані відповідним чином, тому просто
+ігноруємо їх, отримуючи правильний результат.
+
+#+begin_src rust :noweb yes :noweb-ref task2116:can-be-valid:Дії
+  true
+#+end_src
+
+* COMMENT Рекурсивна перевірка
+
+Перевірку виконуємо рекурсивно, підраховуючи /лічильник пар/ ~pc~ (=pair count=).
+
+#+begin_src rust :noweb-ref task2116:Дії
+  println!("{}", check(&mut source, &mut is_locked, 0));
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task2116:Визначення
+  fn check(source: &mut [char], is_locked: &mut [bool], pc: usize) -> bool {
+      <<task2116:check:Дії>>
+      false
+  }
+#+end_src
+
+Якщо джерело пусте, то рядок коректний, тільки якщо лічильник пар дорівнює ~0~.
+
+#+begin_src rust :noweb-ref task2116:check:Дії
+  if source.is_empty() { return pc == 0; }
+#+end_src
+
+Якщо символ зафіксовано, перевіряємо поточну літеру. Для відкриваючої дужки (~(~) перевіряємо залишок зі
+збільшеним лічильником. Для закриваючої душки (~)~), якщо лічильник дорівнює ~0~, то рядок неправильний,
+інакше перевіримо зі зменшеним лічильником.
+
+#+begin_src rust :noweb-ref task2116:check:Дії
+  if is_locked[0] {
+      match source[0] {
+          '(' => { return check(&mut source[1..], &mut is_locked[1..], pc + 1); },
+          ')' if pc > 0 => { return check(&mut source[1..], &mut is_locked[1..], pc - 1); },
+          ')' if pc == 0 => { return false; },
+          c => panic!("Invalid char {}", c)
+      }
+  }
+#+end_src
+
+Якщо символ не зафіксовано, перевіряємо рекурсивно різні варіанти символа, вважаючи символ фіксованим для
+кожного варіанта. Для простоти не відновлюємо первинне значення джерела, оскільки воно не має сенсу.
+
+#+begin_src rust :noweb-ref task2116:check:Дії
+  if !is_locked[0] {
+      is_locked[0] = true;
+      source[0] = '(';
+      if check(source, is_locked, pc) { return true; }
+      source[0] = ')';
+      if check(source, is_locked, pc) { return true; }
+      is_locked[0] = false;
+  }
+#+end_src
+
