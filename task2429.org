@@ -1,0 +1,95 @@
+#+title: =Leetcode=, задача =2429=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task2429.rs
+  <<task2429:Декларації>>
+
+  <<task2429:Визначення>>
+
+  fn main() {
+      <<task2429:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task2429:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task2429:Дії
+  let args: Vec<String> = env::args().collect();
+  let num1 = args[1].parse::<usize>().unwrap();
+  let num2 = args[2].parse::<usize>().unwrap();
+#+end_src
+
+* Підрахунок необхідної кількості біт
+
+#+begin_src rust :noweb-ref task2429:Дії
+  let mut n = num2;
+  let mut cnt = 0;
+  while n > 0 {
+      if n % 2 == 1 { cnt += 1 }
+      n /= 2;
+  }
+  println!("{}", cnt);
+#+end_src
+
+* Отримання множини позицій встановлених бітів
+
+#+begin_src rust :noweb-ref task2429:Декларації
+  use std::collections::BTreeSet;
+#+end_src
+
+#+begin_src rust :noweb-ref task2429:Дії
+  let mut n = num1;
+  let mut bits = BTreeSet::new();
+  let mut i = 0;
+  while n > 0 {
+      if n % 2 == 1 { bits.insert(i); }
+      i += 1;
+      n /= 2;
+  }
+  println!("{:?}", bits);
+#+end_src
+
+* Перевірка варіантів кількості біт
+
+#+begin_src rust :noweb-ref task2429:Декларації
+  use std::cmp::Ordering;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task2429:Дії
+  let result = match cnt.cmp(&bits.len()) {
+      Ordering::Equal => num1,
+      Ordering::Less => {
+          <<task2429:Видалити-біти>>
+      },
+      Ordering::Greater => {
+          <<task2429:Додати-біти>>
+      }
+  };
+#+end_src
+
+** Видалення бітів
+
+#+begin_src rust :noweb-ref task2429:Видалити-біти
+  while bits.len() > cnt {
+      bits.pop_first();
+  }
+  bits.into_iter().map(|p| 1 << p).sum()
+#+end_src
+
+** Додавання бітів
+
+#+begin_src rust :noweb-ref task2429:Додати-біти
+  let mut i = 0;
+  while bits.len() < cnt {
+      if !bits.contains(&i) { bits.insert(i); }
+      i += 1;
+  }
+  bits.into_iter().map(|p| 1 << p).sum()
+#+end_src
+
