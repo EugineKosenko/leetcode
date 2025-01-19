@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 struct Bag(BTreeMap<char, usize>);
 
 impl Bag {
-    fn new(word: &String) -> Self {
+    fn new(word: &str) -> Self {
         let mut result = BTreeMap::new();
         for c in word.chars() {
             *result.entry(c).or_default() += 1;
@@ -15,7 +15,7 @@ impl Bag {
 
     fn is_subset(&self, other: &Self) -> bool {
         0 == self.0.iter()
-            .filter(|&(ch, cnt)| cnt > other.0.get(&ch).unwrap_or(&0))
+            .filter(|&(ch, cnt)| cnt > other.0.get(ch).unwrap_or(&0))
             .count()
     }
 

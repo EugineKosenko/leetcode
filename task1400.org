@@ -1,4 +1,4 @@
-#+title: =Leetcode=, задача 1400
+#+title: =Leetcode=, задача =1400=
 
 * Головний файл
 
@@ -162,45 +162,3 @@
               .count()
       })
 #+end_src
-
-* Чернетка
-
-# Intuition
-<!-- Describe your first thoughts on how to solve this problem. -->
-Originally it searched all possible partitions and checked the items for palindromes. It is quite inefficient, so the solution was spied and implemented using a set of heuristics.
-
-# Approach
-<!-- Describe your approach to solving the problem. -->
-There are four essential cases:
-
-- if the source length bigger than `k`, there is no valid partition (`false`);
-
-- if the source length is equal `k`, there is only one possible partition of single-character items, which all are palindromes (`true`);
-
-- if the source length is less than `k`, count the number of each letter; the letters with even counts do not affect on the result, so select only odd counts; each odd count require a separate 
-
-# Complexity
-- Time complexity:
-<!-- Add your time complexity here, e.g. $$O(n)$$ -->
-
-- Space complexity:
-<!-- Add your space complexity here, e.g. $$O(n)$$ -->
-
-# Code
-```rust []
-use std::iter;
-use std::collections::BTreeMap;
-
-impl Solution {
-    pub fn can_construct(s: String, k: i32) -> bool {
-        let k = k as usize;
-        if s.len() < k { return false; }
-        if s.len() == k { return true; }
-        let mut stats = BTreeMap::new();
-        for ch in s.chars() {
-            *stats.entry(ch).or_default() += 1;
-        }
-        k >= stats.values().filter(|&cnt| cnt % 2 == 1).count()
-    }
-}
-```
