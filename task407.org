@@ -8,6 +8,7 @@
   <<task407:Визначення>>
 
   fn main() {
+      let mut result = 0;
       <<task407:Дії>>
       println!("{}", result);
   }
@@ -42,169 +43,100 @@
 
 #+begin_src rust :noweb-ref task407:Дії
   let (rows, cols) = (grid.len(), grid[0].len());
-  println!("{} {}", rows, cols);
 #+end_src
 
-* Стан комірки
+* Ознака зберігання комірки
 
-/Коміркою/ (=cell=) називаємо увесь порожній стовпчик, який може накопичувати воду. Комірка може
-/зберігати/ (=keep=) певну /ємність/ (=volume=) води, дозволяти /виток/ (=leak=) після певного рівня
-(однак, така комірка все ж таки може зберігати певну ємність води), або мати /невизначений/ (=undefined=)
-тип.
-
-#+begin_src rust :noweb-ref task407:Визначення
-  #[derive(Debug, Clone)]
-  enum Cell {
-      Undefined, Leak(usize), Keep(usize)
-  }
-#+end_src
-
-Матриця комірок дозволяє відслідковувати тип кожної комірки.
-
-#+begin_src rust :noweb-ref task407:Визначення
-  type Cells = Vec<Vec<Cell>>;
-#+end_src
-
-Створимо матрицю комірок з невизначеним станом.
+Коміркою вважаємо стовпчик, який може зберігати воду. Створимо матрицю ознак комірок.
 
 #+begin_src rust :noweb-ref task407:Дії
-  let mut cells = vec![vec![Cell::Undefined; cols]; rows];
+  let mut is_kept = vec![vec![true; cols]; rows];
 #+end_src
 
-Однак, усі комірки на кордоні дошки дозволяють витоки, при цьому вони не можуть взагалі накопичувати
-води. Зафіксуємо це в матриці комірок.
+* Витоки
 
-#+begin_src rust :noweb-ref task407:Дії
-  for row in 0..rows {
-      cells[row][0] = Cell::Leak(0);
-      cells[row][cols - 1] = Cell::Leak(0);
-  }
+Для ефективності будемо зберігати витоки в окремому переліку.
 
-  for col in 0..cols {
-      cells[0][col] = Cell::Leak(0);
-      cells[rows - 1][col] = Cell::Leak(0);
-  }
-  //show_cells(&cells);
+#+begin_src rust :noweb yes :noweb-ref task407:Дії
+  let mut leaks = Vec::new();
 #+end_src
 
 * Перебір рівнів
 
-Визначимо мінімальний і максімальний рівень.x
-
 #+begin_src rust :noweb yes :noweb-ref task407:Дії
   let minl = *grid.iter().map(|row| row.iter().min().unwrap()).min().unwrap();
   let maxl = *grid.iter().map(|row| row.iter().max().unwrap()).max().unwrap();
-  println!("{} {}", minl, maxl);
   for l in minl..=maxl {
-      //if l % 1000 == 0 { println!("Level {}", l); }
       <<task407:Обробити-рівень>>
+  }
+#+end_src
+
+** Додавання нових витоків
+
+На новому рівні можуть з'явитися нові витоки на кордоні дошки.
+
+#+begin_src rust :noweb yes :noweb-ref task407:Обробити-рівень
+  for r in 0..rows {
+      if grid[r][0] == l { is_kept[r][0] = false; leaks.push((r, 0)); }
+      if grid[r][cols - 1] == l { is_kept[r][cols - 1] = false; leaks.push((r, cols - 1)); }
+  }
+
+  for c in 1..(cols - 1) {
+      if grid[0][c] == l { is_kept[0][c] = false; leaks.push((0, c)); }
+      if grid[rows - 1][c] == l { is_kept[rows - 1][c] = false; leaks.push((rows - 1, c)); }
   }
 #+end_src
 
 ** Обробка витоків
 
-Перебираємо усі комірки з витоками, і помічаємо усіх їх сусідів, також як витоки. Ця дія має
-повторюватися для нових витоків, поки не будуть розмічені всі витоки на цьому рівні. Для такого перебору
-використовуємо чергу точок для обробки, яка спочатку містить тільки поточні витоки.
+Перебираємо усі витоки, і помічаємо усіх їх сусідів, також як витоки. Ця дія має повторюватися для нових
+витоків, поки не будуть розмічені всі витоки на цьому рівні. Для такого перебору використовуємо чергу
+точок для обробки, яка спочатку містить тільки поточні витоки. Для ефективності спочатку вважаємо чергою
+поточний перелік витоків, а в процесі обробки будуємо новий перелік витоків.
 
 #+begin_src rust :noweb yes :noweb-ref task407:Обробити-рівень
-  let mut queue = Vec::new();
-  for r in 0..rows {
-      for c in 0..cols {
-          if grid[r][c] <= l {
-              if let Cell::Leak(_) = cells[r][c] {
-                  queue.push((r, c));
-              }
-          }
-      }
-  }
-  //println!("{:?}", queue);
+  let mut queue = leaks;
+  leaks = Vec::new();
 #+end_src
 
-Перетворення сусідів залежить від їх типу. Невизначені комірки стають витоками нульової ємності
-(~Leak(0)~), оскільки вода з них в будь-якому разі витече. Зберігаюча комірка стає витоком, але вона все
-ще зберігає воду на нижчих рівнях, тому ~Keep(n)~ перетворюється на ~Leak(n)~. Існуючі витоки залишаються
-без змін.
+При знаходжені нового витоку фіксуємо в результаті об'єм води, якій він може зберегти на нижчих рівнях.
 
 #+begin_src rust :noweb yes :noweb-ref task407:Обробити-рівень
   while let Some((r, c)) = queue.pop() {
+      leaks.push((r, c));
       for (dr, dc) in [(-1, 0), (0, 1), (1, 0), (0, -1)] {
           let (r1, c1) = (r as isize + dr, c as isize + dc);
           if r1 >= 0 && r1 < rows as isize
               && c1 >= 0 && c1 < cols as isize
               && grid[r1 as usize][c1 as usize] <= l {
                   let (r1, c1) = (r1 as usize, c1 as usize);
-                  match cells[r1][c1] {
-                      Cell::Undefined => {
-                          cells[r1][c1] = Cell::Leak(0);
-                          queue.push((r1, c1));
-                      },
-                      Cell::Keep(n) => {
-                          cells[r1][c1] = Cell::Leak(n);
-                          queue.push((r1, c1));
-                      },
-                      Cell::Leak(_) => { /* do nothing */ }
-                  }       
+                  if is_kept[r1][c1] {
+                      is_kept[r1][c1] = false;
+                      result += (l - grid[r1 as usize][c1 as usize]) as usize;
+                      queue.push((r1, c1));
+                  }   
               }
       }
   }
-  //show_cells(&cells);
-  //println!();
 #+end_src
 
-** Обробка зберігаючих комірок
-
-На новому рівні усі зберігаючі комірки, які не стали витоками, збільшують свою ємність, а ті, що були
-невизначеними, стають зберігаючими ємності ~1~.
-
-#+begin_src rust :noweb yes :noweb-ref task407:Обробити-рівень
-  for r in 0..rows {
-      for c in 0..cols {
-          if grid[r][c] <= l {
-              match cells[r][c] {
-                  Cell::Undefined => { cells[r][c] = Cell::Keep(1); },
-                  Cell::Keep(n) => { cells[r][c] = Cell::Keep(n + 1); },
-                  Cell::Leak(_) => { /* do nothing */ }
-              }
-          }
-      }
-  }
-  //show_cells(&cells);
-#+end_src
-
-* Отримання результата
-
-Результат є сумою усіх накопичень у визначених комірках.
-
-#+begin_src rust :noweb yes :noweb-ref task407:Дії
-  let result = cells.into_iter()
-      .map(|row| row.into_iter()
-           .map(move |cell| match cell {
-               Cell::Undefined => panic!("Empty cell"),
-               Cell::Leak(n) => n,
-               Cell::Keep(n) => n
-           })
-           .sum::<usize>() as i32)
-      .sum::<i32>();
-#+end_src
-
-* Відлагодження
+* COMMENT Відлагодження
 
 Функція ~show_cells~ показує стан комірок.
+
+#+begin_src rust :noweb-ref task407:Визначення
+  type Cells = Vec<Vec<bool>>;
+#+end_src
 
 #+begin_src rust :noweb-ref task407:Визначення
   fn show_cells(cells: &Cells) {
       for row in cells {
           for cell in row {
-              print!(
-                  "{} ", match cell {
-                      Cell::Undefined => "U ".to_string(),
-                      Cell::Keep(n) => format!("K{}", n),
-                      Cell::Leak(n) => format!("L{}", n)
-                  });
-                        
+              print!("{} ", if *cell { "K" } else { "L" });
           }
           println!();
       }
+      println!();
   }
 #+end_src
+cvt
