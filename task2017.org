@@ -1,0 +1,79 @@
+#+title: =Leetcode=, задача =2017=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task2017.rs
+  <<task2017:Декларації>>
+
+  <<task2017:Визначення>>
+
+  fn main() {
+      <<task2017:Дії>>
+      //println!("{}", result);
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task2017:Декларації
+  use std::{env, fs, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref task2017:Дії
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let grid = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap())
+      .next().unwrap();
+  let grid: Vec<Vec<i32>> = grid
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split("],[")
+      .map(|row| row
+            .trim_start_matches('[')
+            .trim_end_matches(']')
+            .split(',')
+            .map(|item| item.parse().unwrap())
+            .collect())
+      .collect();
+  println!("{} {}", grid.len(), grid[0].len());
+#+end_src
+
+* Початкові суми
+
+Визначимо покрокові суми для першого (=sum1=) та другого (=sum2=) рядка. Перша сума спочатку включає усі
+елементи, крім першого, оскільки від за будь-яким маршрутом буде виключено першим роботом. Вона буде
+зменшуватись на кожному кроці. Друга сума спочатку дорівнює ~0~ і буде збільшуватись на кожному кроці,
+крім останнього, який також буде вилучено першим роботом.
+
+#+begin_src rust :noweb-ref task2017:Дії
+  let mut sum1: i64 = grid[0].iter().map(|&i| i as i64).sum::<i64>() - grid[0][0] as i64;
+  let mut sum2: i64 = 0;
+#+end_src
+
+* Результат
+
+Результат спочатку дорівнює першій сумі, оскільки він ні за яких умов не може бути більше за неї.
+
+#+begin_src rust :noweb-ref task2017:Дії
+  let mut result = sum1;
+#+end_src
+
+* Перебір шляхів
+
+Перший робот може звернути тільки один раз, але на будь-якому стовпчику. Тому перебираємо усі індекси,
+для кожного наступного індексу зменшуємо першу суму і збільшуємо другу суму так, що вони представляють
+можливі вибори для другого роботу.
+
+Другий робот обирає більшу з двох сум, однак перший робот обирає мінімальну можливу з усіх шляхів.
+
+#+begin_src rust :noweb-ref task2017:Дії
+  for i in 0..grid[0].len() - 1 {
+      sum1 -= grid[0][i + 1] as i64;
+      sum2 += grid[1][i] as i64;
+      result = result.min(sum1.max(sum2));
+  }
+  println!("{}", result);
+#+end_src
+
