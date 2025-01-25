@@ -1,0 +1,122 @@
+#+title: =Leetcode=, задача =2948=
+
+Ідея рішення полягає у перетворенні послідовності значень на систему сумок (/компонентів/, =unit=), що не
+перетинаються (=disjoint-set=, =DSU=). Всередині кожного компонента для кожного значення є щонайменше
+одне інше значення, яке відрізняється від ньго більше, ніж на значення межи (=limit=). Таким чином кожне
+значення у векторі послідовно заміняється на найменший елемент з його компонента.
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task2948.rs
+  <<task2948:Декларації>>
+
+  <<task2948:Визначення>>
+
+  fn main() {
+      <<task2948:Дії>>
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task2948:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task2948:Дії
+  let args: Vec<String> = env::args().collect();
+  let nums: Vec<i32> = args[1]
+      .trim_start_matches('[')
+      .trim_end_matches(']')
+      .split(',')
+      .map(|item| item.parse().unwrap())
+      .collect();
+  let limit: i32 = args[2].parse::<i32>().unwrap();
+  println!("{:?} {}", nums, limit);
+#+end_src
+
+* Визначення початкових структур
+
+Перетворимо початковий вектор значень =nums= на "відсортовану" сумку (~BinaryHeap~) =queue=, яку будемо
+обробляти послідовно. Ми змушені використовувати тут сумке, а не множину, тому що елементи вектора можуть
+повторюватись. При цьому, оскільки сумка завжди впорядковує значення по зростанню, доведеться усі
+елементи огорнути в ~Reverse~.
+
+#+begin_src rust :noweb-ref task2948:Декларації
+  use std::collections::BinaryHeap;
+  use std::cmp::Reverse;
+#+end_src
+
+#+begin_src rust :noweb-ref task2948:Дії
+  let mut queue = BinaryHeap::from(nums.iter().copied().map(Reverse).collect::<Vec<_>>());
+  println!("Queue: {:?}", queue);
+#+end_src
+
+Усі значення в черзі розглядаються у відсортованій черзі попарно (=v1= і =v2=), тому визначимо початкове
+перше значення.
+
+#+begin_src rust :noweb-ref task2948:Дії
+  let Reverse(mut v1) = queue.pop().unwrap();
+#+end_src
+
+Визначимо систему множин як вектор відсортованих сумок (тут ми знову змушені використовувати сумки,
+оскільки значення можуть повторюватись). Спочатку перший компонент системи містить лише одну сумку з
+початковим першим (найменшим) значенням.
+
+#+begin_src rust :noweb-ref task2948:Дії
+  let mut dsu = vec![BinaryHeap::from([Reverse(v1)])];
+  println!("DSU: {:?}", dsu);
+#+end_src
+
+Для швидкого посилання на компоненти =dsu= (метод =find=) створимо /індекс/ (=index=), який є мапою
+(=HashMap=) значень на індекси компонентів в векторі =dsu=. Спочатку індекс містить лише посилання
+початкового першого елемента на перший компонент системи.
+
+#+begin_src rust :noweb-ref task2948:Декларації
+  use std::collections::HashMap;
+#+end_src
+
+#+begin_src rust :noweb-ref task2948:Дії
+  let mut index = HashMap::from([(v1, dsu.len() - 1)]);
+  println!("Index: {:?}", index);
+#+end_src
+
+* Побудова системи сумок
+
+Перебираємо послідовно значення у черзі як другі значення (=v2=) у ланцюгу. Якщо друге значення не
+виходить за межу (=limit=) різниці з попереднім (першим) значенням (=v1=), додаємо друге значення в
+поточний компонент. В іншому випадку створюємо новий компонент з другим значенням. У будь-якому випадку
+друге значення становиться першим для наступного циклу.
+
+Оскільки значення у впорядковані сумці не можуть бути перебрані в ітераторі, ми змушені послідовно
+витягувати їх з черги.
+
+#+begin_src rust :noweb-ref task2948:Дії
+  while let Some(Reverse(v2)) = queue.pop() {
+      let l = dsu.len() - 1;
+      if v1 + limit >= v2 {
+          dsu[l].push(Reverse(v2));
+      } else {
+          dsu.push(BinaryHeap::from([Reverse(v2)]));
+      }
+      index.insert(v2, dsu.len() - 1);
+      v1 = v2;
+  }
+  println!("DSU: {:?}", dsu);
+  println!("Index: {:?}", index);
+#+end_src
+
+* Визначення результату
+
+Для визначення результату ми послідовно перебираємо значення аргумента, для кожного значення знаходимо
+його сумку и витягуємо звідти найменше значення.
+
+#+begin_src rust :noweb-ref task2948:Дії
+  let result: Vec<i32> = nums.into_iter()
+      .map(|v| {
+          let Reverse(v) = dsu[*index.get(&v).unwrap()].pop().unwrap();
+          v
+      })
+      .collect();
+  println!("{:?}", result);
+#+end_src
