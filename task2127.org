@@ -1,0 +1,204 @@
+#+title: =Leetcode=, задача =2127=
+
+Ідея рішення полягає у перетворенні послідовності значень на систему сумок (/компонентів/, =unit=), що не
+перетинаються (=disjoint-set=, =DSU=). Всередині кожного компонента для кожного значення є щонайменше
+одне інше значення, яке відрізняється від ньго більше, ніж на значення межи (=limit=). Таким чином кожне
+значення у векторі послідовно заміняється на найменший елемент з його компонента.
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task2127.rs
+  <<task2127:Декларації>>
+
+  <<task2127:Визначення>>
+
+  fn main() {
+      <<task2127:Дії>>
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task2127:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task2127:Дії
+  let args: Vec<String> = env::args().collect();
+  let favorite: Vec<i32> = args[1]
+      .trim_start_matches('[')
+      .trim_end_matches(']')
+      .split(',')
+      .map(|item| item.parse().unwrap())
+      .collect();
+  let n = favorite.len();
+#+end_src
+
+* Накопичення результатів
+
+Можливі два принципово різних типа рішення:
+
+- найбільший цикл;
+- множина циклів довжини ~2~ з /хвостами/ (=tail=).
+
+Остаточне рішення визначається найбільшим з розмірів цих варіантів. Оскільки варіант невідомий до самого
+кінця роботи алгоритму, накопичуватимо розміри для кожного варіанта окремо.
+
+#+begin_src rust :noweb-ref task2127:Дії
+  let mut cyclic_size = 0;
+  let mut chained_size = 0;
+#+end_src
+
+* Міньони
+
+Алгоритм суттєво залежить від зворотніх зв'язків у графі /фаворитів/ (=favorite=). Для кожного
+співробітника створимо невпорядковану множину (~HashSet~) його /міньонів/ (=minion=) --- співробітників,
+для яких він є фаворитом. Для ефективності зберігатимемо переліки міньонів для кожного співробітника у
+векторі фіксованої довжини.
+
+#+begin_src rust :noweb-ref task2127:Декларації
+  use std::collections::HashSet;
+#+end_src
+
+#+begin_src rust :noweb-ref task2127:Дії
+  let mut minions = vec![HashSet::new(); n];
+  for (m, f) in favorite.iter().enumerate() {
+      minions[*f as usize].insert(m);
+  }
+#+end_src
+
+* Черга
+
+При пошуку мають бути оброблені усі співробітники, але вони перебираються у складний спосіб. Тому
+створимо /чергу/ (=queue=) співробітників, з якої вони будуть вилучатися по мірі виконання алгоритму. Для
+ефективності черга реалізована як невпорядкована множина (~HashSet~).
+
+#+begin_src rust :noweb-ref task2127:Дії
+  let mut queue: HashSet<usize> = (0..n).collect();
+#+end_src
+
+* Пошук циклів
+
+Поки черга не пуста, витягуємо з неї перший елемент і шукаємо для нього перший елемент цикла за допомогою
+алгоритма =повільний-швидкий= (=черепаха-заяць=).
+
+#+begin_src rust :noweb yes :noweb-ref task2127:Дії
+  while !queue.is_empty() {
+      let mut se = *queue.iter().next().unwrap();
+      let mut fast = favorite[se] as usize;
+      while fast != se {
+          se = favorite[se] as usize;
+          fast = favorite[favorite[fast] as usize] as usize;
+      }
+      <<task2127:Обробити-цикл>>
+
+}
+#+end_src
+
+* Обробка цикла
+
+Перебираємо усіх співробітників у циклі, обчислюючи для кожного максимальну довжину його хвоста і сумуючи
+ці довжини.
+
+В результаті ми отримуємо два значення, довжину цикла (~cycle_len~) і загальну довжину хвостів
+(~tails_len~).
+
+#+begin_src rust :noweb yes :noweb-ref task2127:Обробити-цикл
+  let mut cycle_len = 0;
+  let mut tails_len = 0;
+#+end_src
+
+Оскільки нам потрібно знайти кінець цикла, який співпадає з його початком, ми перебираємо співробітників
+починаючи лише з наступного від початку, а вихід виконуємо лише в кінці тіла цикла (використовуємо
+=loop=).
+
+Ми також відслідковуємо попереднього співробітника в циклі (=Previous Employee=, ~pe~), щоб не
+враховувати його в хвостах.
+
+#+begin_src rust :noweb yes :noweb-ref task2127:Обробити-цикл
+  let mut pe = se;
+  let mut e = favorite[pe] as usize;
+  loop {
+      <<task2127:Обробити-співробітника-в-циклі>>
+      pe = e;
+      e = favorite[pe] as usize;
+      if pe == se { break; }
+  }
+#+end_src
+
+Якщо довжина цикла більше очікуваного розміру найбільшого циклу ~cyclic_size~, збільшуємо цей розмір.
+
+#+begin_src rust :noweb yes :noweb-ref task2127:Обробити-цикл
+  cyclic_size = cyclic_size.max(cycle_len);
+#+end_src
+
+Якщо довжина цикла дорівнює ~2~, додаємо його разом з хвостами до рішення з хвостами.
+
+#+begin_src rust :noweb yes :noweb-ref task2127:Обробити-цикл
+  if cycle_len == 2 { chained_size += cycle_len + tails_len; }
+#+end_src
+
+* Обробка співробітника у циклі
+
+Кожного обробленого співробітника ми виключаємо його із черги.
+
+#+begin_src rust :noweb yes :noweb-ref task2127:Обробити-співробітника-в-циклі
+  queue.remove(&e);
+#+end_src
+
+Кожен співробітник в циклі збільшує його довжину.
+
+#+begin_src rust :noweb yes :noweb-ref task2127:Обробити-співробітника-в-циклі
+  cycle_len += 1;
+#+end_src
+
+Кожен співробітник в циклі рекурсивно (у функціі ~tail_len~) вилучає усіх міньонів, обчислюючи
+максимальну довжину хвоста. Максимальна довжина хвоста додається до загальної довжини хвостів у циклі
+(~tails_len~). Для ефективності будемо руйнувати мапу міньонів, виключаючи з переліку міньонів поточного
+співробітника (~eminions~) попереднього співробітника у циклі (~pe~).
+
+#+begin_src rust :noweb yes :noweb-ref task2127:Обробити-співробітника-в-циклі
+  let mut emignions = minions[e].clone();
+  emignions.remove(&pe);
+  tails_len += tail_len(&emignions, &minions, &mut queue);
+#+end_src
+
+* Пошук найдовшого хвоста
+
+Функція ~tail_len~ не тільки обчислює найдовший хвіст, але й видаляє з черги усіх міньонів.
+
+Алгоритм вимагає, щоб ми обробляли не самого співробітника, а перелік його міньонів (=Employee MINIONS=,
+~eminions~).
+
+При обчисленні мініонів ми маємо не враховувати попереднього співробітника у циклі (=Previous Employee=,
+~pe~), оскільки він не входить до хвоста.
+
+#+begin_src rust :noweb yes :noweb-ref task2127:Визначення
+  fn tail_len(eminions: &HashSet<usize>, minions: &Vec<HashSet<usize>>, queue: &mut HashSet<usize>) -> usize {
+      <<task2127:tail-len:Дії>>
+  }
+#+end_src
+
+Якщо у співробітника нема міньонів, довжина хвоста дорівнює ~0~.
+
+#+begin_src rust :noweb yes :noweb-ref task2127:tail-len:Дії
+  if eminions.len() == 0 { return 0; }
+#+end_src
+
+У іншому випадку знаходимо міньона з найдовшим хвостом і повертаємо хвіст на ~1~ більше, оскільки цей
+хвіст включає і самого міньона. При цьому видаляємо міньонів з черги.
+
+#+begin_src rust :noweb yes :noweb-ref task2127:tail-len:Дії
+  1 + eminions.iter()
+      .map(|&m| { queue.remove(&m); tail_len(&minions[m], minions, queue) })
+      .max().unwrap()
+#+end_src
+
+* Остаточний результат
+
+З двох варіантів рішення знаходимо найбільше.
+
+#+begin_src rust :noweb-ref task2127:Дії
+  let result = cyclic_size.max(chained_size);
+  println!("Result: {}", result);
+#+end_src
