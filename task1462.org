@@ -1,0 +1,105 @@
+#+title: =Leetcode=, задача =1462=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task1462.rs
+  <<task1462:Декларації>>
+
+  <<task1462:Визначення>>
+
+  fn main() {
+      <<task1462:Дії>>
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task1462:Декларації
+  use std::{env, fs, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref task1462:Дії
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let mut lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+  let _num_courses: i32 = lines.next().unwrap().parse().unwrap();
+  let prerequisites = lines.next().unwrap();
+  let prerequisites = prerequisites
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap();
+
+  let prerequisites: Vec<Vec<i32>> = if prerequisites.is_empty() {
+      vec![]
+  } else {
+      prerequisites
+          .split("],[")
+          .map(|row| row
+               .trim_start_matches('[')
+               .trim_end_matches(']')
+               .split(',')
+               .map(|item| item.parse().unwrap())
+               .collect())
+          .collect()
+  };
+  let queries: Vec<Vec<i32>> = lines.next().unwrap()
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split("],[")
+      .map(|row| row
+            .trim_start_matches('[')
+            .trim_end_matches(']')
+            .split(',')
+            .map(|item| item.parse().unwrap())
+            .collect())
+      .collect();
+#+end_src
+
+* Довідник залежностей
+
+Для ефективності перепакуємо перелік пар в невпорядковану мапу (~HashMap~) залежностей ~deps~.
+
+#+begin_src rust :noweb-ref task1462:Декларації
+  use std::collections::HashMap;
+#+end_src
+
+#+begin_src rust :noweb-ref task1462:Дії
+  let mut deps: HashMap<usize, Vec<usize>> = HashMap::new();
+  for dep in prerequisites.iter() { deps.entry(dep[0] as usize).or_default().push(dep[1] as usize); }
+#+end_src
+
+* Замикання
+
+Для кожного курса, який є початковим в мапі залежностей (усі інші курси не будуть досяжними) створимо
+транзитивне замикання (=closure=) у вигляді невпорядкованої множини (~HashSet~) за допомогою пошуку в
+ширину (=BFS=). Об'єднаємо всі такі замикання у невпорядковану мапу (~HashMap~).
+
+#+begin_src rust :noweb-ref task1462:Декларації
+  use std::collections::HashSet;
+#+end_src
+
+#+begin_src rust :noweb-ref task1462:Дії
+  let mut closures = HashMap::new();
+  for from in deps.keys() {
+      let mut closure: HashSet<usize> = HashSet::new();
+      let mut queue = vec![*from];
+      while let Some(to) = queue.pop() {
+          closure.insert(to);
+          for to in deps.get(&to).unwrap_or(&vec![]) { if !closure.contains(to) { queue.push(*to); } }
+      }
+      closures.insert(from, closure);
+  }
+#+end_src
+
+* Перевірка запитів і побудова результата
+
+#+begin_src rust :noweb-ref task1462:Дії
+  let result: Vec<bool> = queries.into_iter()
+      .map(|query| match closures.get(&(query[0] as usize)) {
+          None => false,
+          Some(closure) => closure.contains(&(query[1] as usize))
+      })
+      .collect();
+  println!("{:?}", result);
+#+end_src
