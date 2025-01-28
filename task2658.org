@@ -1,0 +1,94 @@
+#+title: =Leetcode=, задача =2658=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task2658.rs
+  <<task2658:Декларації>>
+
+  <<task2658:Визначення>>
+
+  fn main() {
+      <<task2658:Дії>>
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task2658:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task2658:Дії
+  let args: Vec<String> = env::args().collect();
+  let grid: Vec<Vec<i32>> = args[1]
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split("],[")
+      .map(|row| row
+            .trim_start_matches('[')
+            .trim_end_matches(']')
+            .split(',')
+            .map(|item| item.parse().unwrap())
+            .collect())
+      .collect();
+  let (m, n) = (grid.len(), grid[0].len());
+#+end_src
+
+* Формування басейну
+
+З усіх точок дошки виділимо /басейн/ (=pool=) --- невпорядковану мапу (~HashMap~) точок, в яких є риба,
+на їх /глибину/ (=depth=), тобто, кількість риби в цих точках.
+
+#+begin_src rust :noweb-ref task2658:Декларації
+  use std::collections::HashMap;
+#+end_src
+
+#+begin_src rust :noweb-ref task2658:Дії
+  let mut pool: HashMap<(usize, usize), usize> = grid.into_iter().enumerate()
+      .flat_map(|(r, row)| {
+          row.into_iter().enumerate()
+              .filter_map(move |(c, d)| if d == 0 { None } else { Some(((r, c), d as usize)) })
+      })
+      .collect();
+#+end_src
+
+* Пошук найкращого відділення
+
+/Відділення/ (=section=) включає невпорядковану множину (~HashSet~) усіх точки басейну, пов'язаних між
+собою. Однак нам достатньо знайти не відділення, а лише кількість риб (просто =count=) в найбільшому
+відділенні.
+
+#+begin_src rust :noweb yes :noweb-ref task2658:Дії
+  let mut result = 0;
+  loop {
+      let Some(start) = pool.keys().cloned().next() else { break; };
+      let mut count = 0;
+      <<task2658:Обробка-відділення>>
+      result = result.max(count);
+  }
+  println!("Result: {}", result);
+#+end_src
+
+* Обробка відділення
+
+Виконуємо пошук відділення пошуков в ширину (=BFS=).
+
+#+begin_src rust :noweb yes :noweb-ref task2658:Обробка-відділення
+  let mut queue = vec![start];
+  count += *pool.get(&start).unwrap();
+  pool.remove(&start);
+  while let Some((r, c)) = queue.pop() {
+      for (dr, dc) in [(-1, 0), (0, 1), (1, 0), (0, -1)] {
+          let (r1, c1) = (r as isize + dr, c as isize + dc);
+          if r1 >= 0 && r1 < m as isize && c1 >= 0 && c1 < n as isize {
+              let next = (r1 as usize, c1 as usize);
+              if pool.contains_key(&next) {
+                  count += *pool.get(&next).unwrap();
+                  pool.remove(&next);
+                  queue.push(next);
+              }
+          }
+      }
+  }
+#+end_src
+
