@@ -182,7 +182,7 @@
 Якщо у співробітника нема міньонів, довжина хвоста дорівнює ~0~.
 
 #+begin_src rust :noweb yes :noweb-ref task2127:tail-len:Дії
-  if eminions.len() == 0 { return 0; }
+  if eminions.is_empty() { return 0; }
 #+end_src
 
 У іншому випадку знаходимо міньона з найдовшим хвостом і повертаємо хвіст на ~1~ більше, оскільки цей

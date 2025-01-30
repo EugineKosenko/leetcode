@@ -24,8 +24,7 @@ fn main() {
         })
         .collect();
     let mut result = 0;
-    loop {
-        let Some(start) = pool.keys().cloned().next() else { break; };
+    while let Some(start) = pool.keys().cloned().next() {
         let mut count = 0;
         let mut queue = vec![start];
         count += *pool.get(&start).unwrap();

@@ -2,7 +2,7 @@ use std::env;
 use std::collections::HashSet;
 
 fn tail_len(eminions: &HashSet<usize>, minions: &Vec<HashSet<usize>>, queue: &mut HashSet<usize>) -> usize {
-    if eminions.len() == 0 { return 0; }
+    if eminions.is_empty() { return 0; }
     1 + eminions.iter()
         .map(|&m| { queue.remove(&m); tail_len(&minions[m], minions, queue) })
         .max().unwrap()

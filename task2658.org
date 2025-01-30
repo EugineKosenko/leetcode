@@ -60,8 +60,7 @@
 
 #+begin_src rust :noweb yes :noweb-ref task2658:Дії
   let mut result = 0;
-  loop {
-      let Some(start) = pool.keys().cloned().next() else { break; };
+  while let Some(start) = pool.keys().cloned().next() {
       let mut count = 0;
       <<task2658:Обробка-відділення>>
       result = result.max(count);
