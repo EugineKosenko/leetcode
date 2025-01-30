@@ -1,0 +1,242 @@
+#+title: =Leetcode=, задача =2493=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task2493.rs
+  <<task2493:Декларації>>
+
+  <<task2493:Визначення>>
+
+  fn main() {
+      <<task2493:Дії>>
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task2493:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task2493:Дії
+  let args: Vec<String> = env::args().collect();
+  let n: i32 = args[1].parse().unwrap();
+  let edges: Vec<Vec<i32>> = args[2]
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split("],[")
+      .map(|row| row
+           .trim_start_matches('[')
+           .trim_end_matches(']')
+           .split(',')
+           .map(|item| item.parse().unwrap())
+           .collect())
+      .collect();
+#+end_src
+
+* Побудова мапи дуг
+
+Ребра графа не є орієнтованими, для більшої ефективності представимо кожне ребро як пару /дуг/ (=arc=), і
+представимо граф як невпорядковану мапу (~HashMap~) вузлів на переліки їх сусідів.
+
+#+begin_src rust :noweb-ref task2493:Декларації
+  use std::collections::HashMap;
+#+end_src
+
+#+begin_src rust :noweb-ref task2493:Дії
+  let mut arcs: HashMap<usize, Vec<usize>> = HashMap::new();
+  for edge in edges {
+      arcs.entry(edge[0] as usize).or_default().push(edge[1] as usize);
+      arcs.entry(edge[1] as usize).or_default().push(edge[0] as usize);
+  }
+#+end_src
+
+* Отримання пов'язаних компонентів
+
+Розподілимо множину вузлів графа на перелік /компонентів/ (=unit=), кожен з яких представляє собою
+пов'язаний підграф, представлений невпорядкованою множиною (~HashSet~) вузлів, зв'язки між якими
+представлені структурою мапою дуг ~arcs~.
+
+#+begin_src rust :noweb-ref task2493:Декларації
+  use std::collections::HashSet;
+#+end_src
+
+#+begin_src rust :noweb-ref task2493:Дії
+  let mut units: Vec<HashSet<usize>> = Vec::new();
+#+end_src
+
+Для побудови розподілу створимо першу чергу (=queue 1=) у вигляді невпорядкованої множини (~HashSet~)
+усіх вузлів графа.
+
+#+begin_src rust :noweb-ref task2493:Дії
+  let mut queue1: HashSet<usize> = (1..=n as usize).collect();
+#+end_src
+
+Перебираємо вузли з першої черги, поки вона не стане пустою. Для кожного чергового вузла з першої черги
+створюємо черговий компонент з початком в черговому вузлі.
+
+#+begin_src rust :noweb yes :noweb-ref task2493:Дії
+  while let Some(node) = queue1.iter().cloned().next() {
+      let mut unit: HashSet<usize> = HashSet::new();
+      <<task2493:Створити-компонент>>
+      units.push(unit);
+  }
+#+end_src
+
+Для створення компонента створюємо другу чергу (=queue 2=), в якій спочатку міститься лише черговий
+вузол.
+
+#+begin_src rust :noweb-ref task2493:Створити-компонент
+  let mut queue2: HashSet<usize> = HashSet::from([node]);
+#+end_src
+
+Перебираємо вузли в черзі, для кожного вузла, якого нема в першій черзі, видаляємо його з обох черг,
+додаємо до компонента, після чого додаємо у другу чергу усіх сусідів цього вузла.
+
+#+begin_src rust :noweb yes :noweb-ref task2493:Створити-компонент
+  while let Some(node) = queue2.iter().cloned().next() {
+      queue2.remove(&node);
+      if queue1.contains(&node) {
+          queue1.remove(&node);
+          unit.insert(node);
+          for node in arcs.entry(node).or_default() {
+              queue2.insert(*node);
+          }
+      }
+  }
+#+end_src
+
+* Обробка компонентів
+
+Для ефективності спочатку перевіримо, що усі компоненти є дводольними. Якщо хоча б один компонент не є
+дводольним, результат дорівнює ~-1~, в іншому випадку знаходимо кількість груп.
+
+#+begin_src rust :noweb yes :noweb-ref task2493:Дії
+  <<task2493:Перевірити-дводольність>>
+  let result = if is_bipartite {
+      <<task2493:Знайти-кількість-груп>>
+  } else {
+      -1
+  };
+  println!("Result: {}", result);
+#+end_src
+
+* Перевірка дводольності
+
+Перевірка дводольності виконується незалежно для кожного компонента, однак усі компоненти мають бути
+дводольними.
+
+#+begin_src rust :noweb yes :noweb-ref task2493:Перевірити-дводольність
+  let is_bipartite = units.iter()
+      .all(|unit| {
+          <<task2493:Перевірити-дводольність-компонента>>
+      });
+#+end_src
+
+Перевірку виконуємо за допомогою алгоритма /фарбовування/ (=colorize=). Кожному вузлу призначається
+/колір/ (=color=), який може мати лише два (для простоти, логічні (~true/false~) значення.
+
+Створимо мапу фарбування, спочатку вона пуста, оскільки всі вузли не пофарбовані.
+
+#+begin_src rust :noweb yes :noweb-ref task2493:Перевірити-дводольність-компонента
+  let mut colors: HashMap<usize, bool> = HashMap::new();
+#+end_src
+
+Створимо невпорядковану чергу (~HashSet~) вузлів, яка спочатку містить будь-який (для визначеності,
+перший) вузол компонента. Для визначеності вважаємо, що цей компонент пофарбовано кольором ~true~.
+
+#+begin_src rust :noweb yes :noweb-ref task2493:Перевірити-дводольність-компонента
+  let node = unit.iter().next().unwrap();
+  colors.insert(*node, true);
+  let mut queue = HashSet::from([node]);
+#+end_src
+
+Перебираємо вузли в черзі. Для кожного вузла визначаємо його колір і перевіряємо, що усі його сусіди
+мають або протилежний, або невизначений колір. Якщо хоча б один сусід має той саме колір, що і черговий
+вузол, то граф не дводольний. Для усіх інших сусідів встановлюємо протилежний колір і додаємо їх до
+черги. Якщо черга пуста, то граф є дводольним.
+
+#+begin_src rust :noweb yes :noweb-ref task2493:Перевірити-дводольність-компонента
+  loop {
+      let Some(node) = queue.iter().next().cloned() else { break true; };
+      queue.remove(&node);
+      let color1 = *colors.get(node).unwrap();
+      if !arcs.get(node).unwrap().iter()
+          .all(|node| {
+              match colors.get(node) {
+                  None => { // вузол не пофарбовано
+                      colors.insert(*node, !color1);
+                      queue.insert(node);
+                      true
+                  },
+                  Some(color2) => { // вузол пофарбовано
+                      color1 ^ color2 // кольори вузлів мают бути протилежними
+                  }
+              }
+          }) { break false; }
+  }
+#+end_src
+
+* TODO Пошук кількості груп
+
+Знаходимо кількість груп для кожного компонента і сумуємо ці значення
+
+#+begin_src rust :noweb yes :noweb-ref task2493:Знайти-кількість-груп
+  units.into_iter()
+      .map(|unit| {
+          <<task2493:Знайти-кількість-груп-компонента>>
+      })
+      .sum::<usize>() as i32
+#+end_src
+
+Для компонента перебираємо усі вузли як початкові, знаходимо для кожного вузла кількість груп і
+визначаємо максимальне зі значень.
+
+Для отримання кількості груп для вузла створимо невпорядковану множину (~HashSet~) унікальних /відстаней/
+(=distance=, =dist=) вузлів від початкового вузла, і результатом буде розмір цієї множини.
+
+#+begin_src rust :noweb yes :noweb-ref task2493:Знайти-кількість-груп-компонента
+  unit.into_iter()
+      .map(|node| {
+          let mut dists: HashSet<usize> = HashSet::new();
+          let mut map: HashMap<usize, usize> = HashMap::new();
+          <<task2493:Знайти-кількість-груп-вузла>>
+          dists.len()
+      })
+      .max().unwrap()
+#+end_src
+
+Для вузла створюємо впорядковану чергу (~BTreeSet~) для вузлів разом з відстанями. Спочатку ця черга
+містить поточний вузол з нульовою відстанню.
+
+#+begin_src rust :noweb yes :noweb-ref task2493:Декларації
+  use std::collections::BTreeSet;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task2493:Знайти-кількість-груп-вузла
+  let mut queue = BTreeSet::from([(0, node)]);
+#+end_src
+
+Щоб ефективно завершувати пошук, потрібно створити додаткову невпорядковану множину /відвіданих/
+(=visited=) вузлів.
+
+#+begin_src rust :noweb yes :noweb-ref task2493:Знайти-кількість-груп-вузла
+  let mut visited = HashSet::new();
+#+end_src
+
+Перебираємо елементи черги, поки вона не стане пустою. Відстань поміщаємо в множину відстаней
+~dists~. Кожен вузол поміщаємо в множину відвіданих, і для нього перебираємо всіх сусідів, які ми ще не
+відвідували, додаючи їх в чергу з відстанню на одиницю більше.
+
+#+begin_src rust :noweb yes :noweb-ref task2493:Знайти-кількість-груп-вузла
+  while let Some(item @ (dist, node)) = queue.iter().cloned().next() {
+      map.insert(node, dist);
+      dists.insert(dist);
+      queue.remove(&item);
+      visited.insert(node);
+      for node in arcs.get(&node).unwrap() {
+          if !visited.contains(node) { queue.insert((dist + 1, *node)); }
+      }
+  }
+#+end_src
+
