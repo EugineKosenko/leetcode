@@ -72,11 +72,9 @@ fn main() {
                 unit.into_iter()
                     .map(|node| {
                         let mut dists: HashSet<usize> = HashSet::new();
-                        let mut map: HashMap<usize, usize> = HashMap::new();
                         let mut queue = BTreeSet::from([(0, node)]);
                         let mut visited = HashSet::new();
                         while let Some(item @ (dist, node)) = queue.iter().cloned().next() {
-                            map.insert(node, dist);
                             dists.insert(dist);
                             queue.remove(&item);
                             visited.insert(node);

@@ -199,7 +199,6 @@
   unit.into_iter()
       .map(|node| {
           let mut dists: HashSet<usize> = HashSet::new();
-          let mut map: HashMap<usize, usize> = HashMap::new();
           <<task2493:Знайти-кількість-груп-вузла>>
           dists.len()
       })
@@ -230,7 +229,6 @@
 
 #+begin_src rust :noweb yes :noweb-ref task2493:Знайти-кількість-груп-вузла
   while let Some(item @ (dist, node)) = queue.iter().cloned().next() {
-      map.insert(node, dist);
       dists.insert(dist);
       queue.remove(&item);
       visited.insert(node);
