@@ -1,0 +1,147 @@
+#+title: =Leetcode=, задача =827=
+
+See also the tests in [[file:task827.txt][task827.txt]].
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task827.rs
+  <<task827:Декларації>>
+
+  <<task827:Визначення>>
+
+  fn largest_island(grid: Vec<Vec<i32>>) -> i32 {
+      <<task827:Дії>>
+  }
+
+  fn main() {
+      <<task827:Отримання-даних>>
+      println!("{}", largest_island(grid));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task827:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task827:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let grid = args[1]
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split("],[")
+      .map(|row| row
+           .trim_start_matches('[')
+           .trim_end_matches(']')
+           .split(',')
+           .map(|item| item.parse().unwrap())
+           .collect())
+      .collect();
+#+end_src
+
+Встановимо синонім розміру дошки ~n~.
+
+#+begin_src rust :noweb-ref task827:Дії
+  let n = grid.len();
+#+end_src
+
+* Отримання суші
+
+Витягнемо з дошки лише точки /суші/ (=land=) у вигляді невпорядкованої множини (~HashSet~).
+
+#+begin_src rust :noweb-ref task827:Декларації
+  use std::collections::HashSet;
+#+end_src
+
+#+begin_src rust :noweb-ref task827:Дії
+  let mut land = grid.iter().enumerate()
+      .flat_map(|(r, row)| {
+          row.iter().enumerate()
+              .filter_map(move |(c, &p)| if p == 1 { Some((r, c)) } else { None })
+      })
+      .collect::<HashSet<_>>();
+#+end_src
+
+Обробимо особий випадок, коли вся дошка містить тільки сушу. В такому випадку місток поставити неможливо,
+і результатом є розмір самої дошки.
+
+#+begin_src rust :noweb-ref task827:Дії
+  if land.len() == n * n { return (n * n) as i32; }
+#+end_src
+
+* Отримання шельфу
+
+/Шельф/ (=shelf=) включає усі точки безпосередньо навколо островів. Кожна точка шельфу зберігається у
+невпорядкованій мапі (~HashMap~) на невпорядковану множину (~HashSet~) номерів знайдених островів.
+
+#+begin_src rust :noweb-ref task827:Декларації
+  use std::collections::HashMap;
+#+end_src
+
+#+begin_src rust :noweb-ref task827:Дії
+  let mut shelf: HashMap<(usize, usize), HashSet<usize>> = HashMap::new();
+#+end_src
+
+Знайдемо усі острови, однак, збережемо не самі острови, а лише їх /розміри/ (~size~) у переліку
+(~Vec~). Саме на індекси в цьому переліку і посилаються точки в мапі шельфу.
+
+#+begin_src rust :noweb-ref task827:Дії
+  let mut sizes: Vec<usize> = Vec::new();
+#+end_src
+
+Перебираємо усі точки суші, і для кожної такої точки знаходимо її острів.
+
+#+begin_src rust :noweb yes :noweb-ref task827:Дії
+  while let Some(point) = land.iter().cloned().next() {
+      let mut island = HashSet::new();
+      <<task827:Знайти-острів>>
+      sizes.push(island.len());
+  }
+#+end_src
+
+* Знаходження острову
+
+Створимо чергу точок для поточного острова. Спочатку ця черга включає лише початкову точку.
+
+#+begin_src rust :noweb-ref task827:Знайти-острів
+  let mut queue = HashSet::from([point]);
+#+end_src
+
+Перебираємо точки черги, виключаючи їх з суші і додаючи до поточного острова. Для кожної точки
+перебираємо її сусідів. Якщо сусід належить воді (~grid[point]=0~), вона однозначно є точкою шельфа, а
+значить, індекс поточного острову можна додати до переліку островів в мапі шельфу. У іншому випадку це
+точка суші. Якщо ця точка ще не належить острову, ми додаємо її до черги і до острову.
+
+#+begin_src rust :noweb-ref task827:Знайти-острів
+  while let Some(point) = queue.iter().cloned().next() {
+      queue.remove(&point);
+      land.remove(&point);
+      island.insert(point);
+      for (dr, dc) in [(-1, 0), (0, 1), (1, 0), (0, -1)] {
+          let (r, c) = (point.0 as isize + dr, point.1 as isize + dc);
+          if r >= 0 && r < n as isize && c >= 0 && c < n as isize {
+              let point = (r as usize, c as usize);
+              if grid[point.0][point.1] == 0 {
+                  shelf.entry(point).or_default().insert(sizes.len());
+              } else if !island.contains(&point) {
+                  island.insert(point);
+                  queue.insert(point);
+              }
+          }
+      }
+  }
+#+end_src
+
+* Пошук містка
+
+Кожна точка шельфу може стати /містком/ (=bridge=), об'єднуючи всі острови зі своєї множини. В результати
+виникає острів, розмір якого дорівнює сумі розмірів усіх островів містка плюс ~1~ (сам місток). Треба
+знайти місток, який утворить найбільший острів.
+
+#+begin_src rust :noweb-ref task827:Дії
+  1 + shelf.values()
+      .map(|islands| islands.into_iter().map(|&i| sizes[i]).sum())
+      .max().unwrap_or(0) as i32
+#+end_src
+
