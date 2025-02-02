@@ -11,6 +11,7 @@
 
   fn max_score(nums1: Vec<i32>, nums2: Vec<i32>, k: i32) -> i64 {
       <<task2542:Дії>>
+      result
   }
 
   fn main() {
@@ -50,7 +51,6 @@
 
 #+begin_src rust :noweb-ref task2542:Дії
   let n = nums1.len();
-  println!("{}", n);
 #+end_src
 
 Вирівняємо тип ~k~.
@@ -72,51 +72,36 @@
       .map(|i| (nums1[i], nums2[i]))
       .collect::<Vec<_>>();
   pairs.sort_by_key(|pair| pair.1);
-  println!("{}", pairs.len());
 #+end_src
 
 * Пошук залишків
 
-Перебираємо пари в отриманому порядку зі зростанням другого компонента. Кожний раз ми автоматично
-визначаємо мінімальне значення фрагмента в другому масиві, і залишається лише знайти максимальне значення
-суми з ~k~ елементів першого масиву. В результаті треба відібрати значення з максимальним добутком.
+Пряма реалізація з перебором від менших значень другої послідовності до більших виявляється
+неефективним. Замість цього будемо перебирати значення в зворотньому порядку.
 
-Тут важливо правильно задати межі перебору, оскільки отримати ~k~ компонент можна, тільки якщо індекс не
-більше ~n-k~.
+Важливо правильно задати межі перебору, оскільки отримати ~k~ компонент можна, тільки якщо індекс не
+більше ~n-k~. Починаємо з останьої пари з індексом ~n-k~. Для неї можна обчислити початкову суму з
+~nums1~, при цьому можливий тільки один варіант. Потім беремо кожний попередній елемент, для нього сума
+має бути збільшена на відповідне значення з ~nums1~, але з суми необхідно відняти найменше зі значень
+справа від поточної пари. Для знаходження таких найменших значень використовуємо впорядковану суму
+(~BinaryHeap~).
 
 Враховуємо, що при множенні може виникнути переповнення, тому перед обчисленням добутку треба привести
 обидва значення до ~i64~.
 
-#+begin_src rust :noweb yes :noweb-ref task2542:Дії
-  (0..=n-k)
-      .inspect(|i| if i % 1000 == 0 { println!("{}", i); })
-      .map(|i| {
-          let mut result = 0;
-          <<task2542:Знайти-найбільшу-суму-фрагмента-залишку>>
-          result * pairs[i].1 as i64
-      })
-      .max().unwrap()
-#+end_src
-
-Для знаходження найбільшої суми залишку перетворюємо його на впорядковану сумку (~BinaryHeap~).
-
-#+begin_src rust :noweb-ref task2542:Декларації
+#+begin_src rust :noweb yes :noweb-ref task2542:Декларації
   use std::collections::BinaryHeap;
+  use std::cmp::Reverse;
 #+end_src
 
-#+begin_src rust :noweb-ref task2542:Знайти-найбільшу-суму-фрагмента-залишку
-  let mut rest = pairs[i..].iter().map(|pair| pair.0).collect::<BinaryHeap<_>>();
-#+end_src
-
-Після цього знаходимо суму ~k~ найбільших елементів залишку, оскільки вони утворюють найкращий фрагмент.
-
-# begin_src rust :noweb-ref task2542:Знайти-найбільшу-суму-фрагмента-залишку
-  result = rest.into_iter().take(k).map(|i| i as i64).sum();
-#+end_src
-
-#+begin_src rust :noweb-ref task2542:Знайти-найбільшу-суму-фрагмента-залишку
-  for _ in 0..k {
-      result += rest.pop().unwrap() as i64;
+#+begin_src rust :noweb yes :noweb-ref task2542:Дії
+  let (nums1, nums2): (Vec<_>, Vec<_>) = pairs.into_iter().unzip();
+  let mut queue: BinaryHeap<_> = nums1[n-k..].iter().map(|&i| Reverse(i as i64)).collect();
+  let mut sum: i64 = nums1[n-k..].iter().map(|&i| i as i64).sum();
+  let mut result = nums2[n-k] as i64 * sum;
+  for i in (0..n-k).rev() {
+      sum += nums1[i] as i64 - queue.pop().unwrap().0;
+      queue.push(Reverse(nums1[i] as i64));
+      result = result.max(nums2[i] as i64 * sum);
   }
 #+end_src
-

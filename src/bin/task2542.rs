@@ -1,28 +1,26 @@
 use std::{env, fs, io::{self, BufRead}};
 use std::collections::BinaryHeap;
+use std::cmp::Reverse;
 
 
 
 fn max_score(nums1: Vec<i32>, nums2: Vec<i32>, k: i32) -> i64 {
     let n = nums1.len();
-    println!("{}", n);
     let k = k as usize;
     let mut pairs = (0..n)
         .map(|i| (nums1[i], nums2[i]))
         .collect::<Vec<_>>();
     pairs.sort_by_key(|pair| pair.1);
-    println!("{}", pairs.len());
-    (0..=n-k)
-        .inspect(|i| if i % 1000 == 0 { println!("{}", i); })
-        .map(|i| {
-            let mut result = 0;
-            let mut rest = pairs[i..].iter().map(|pair| pair.0).collect::<BinaryHeap<_>>();
-            for _ in 0..k {
-                result += rest.pop().unwrap() as i64;
-            }
-            result * pairs[i].1 as i64
-        })
-        .max().unwrap()
+    let (nums1, nums2): (Vec<_>, Vec<_>) = pairs.into_iter().unzip();
+    let mut queue: BinaryHeap<_> = nums1[n-k..].iter().map(|&i| Reverse(i as i64)).collect();
+    let mut sum: i64 = nums1[n-k..].iter().map(|&i| i as i64).sum();
+    let mut result = nums2[n-k] as i64 * sum;
+    for i in (0..n-k).rev() {
+        sum += nums1[i] as i64 - queue.pop().unwrap().0;
+        queue.push(Reverse(nums1[i] as i64));
+        result = result.max(nums2[i] as i64 * sum);
+    }
+    result
 }
 
 fn main() {
