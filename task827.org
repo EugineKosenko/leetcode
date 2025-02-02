@@ -1,6 +1,6 @@
 #+title: =Leetcode=, задача =827=
 
-See also the tests in [[file:task827.txt][task827.txt]].
+Див. також тести в  [[file:task827.txt][task827.txt]].
 
 * Головний файл
 
