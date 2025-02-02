@@ -141,7 +141,7 @@
 
 #+begin_src rust :noweb-ref task827:Дії
   1 + shelf.values()
-      .map(|islands| islands.into_iter().map(|&i| sizes[i]).sum())
+      .map(|islands| islands.iter().map(|&i| sizes[i]).sum())
       .max().unwrap_or(0) as i32
 #+end_src
 

@@ -38,7 +38,7 @@ fn largest_island(grid: Vec<Vec<i32>>) -> i32 {
         sizes.push(island.len());
     }
     1 + shelf.values()
-        .map(|islands| islands.into_iter().map(|&i| sizes[i]).sum())
+        .map(|islands| islands.iter().map(|&i| sizes[i]).sum())
         .max().unwrap_or(0) as i32
 }
 
