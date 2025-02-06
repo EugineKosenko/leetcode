@@ -1,0 +1,92 @@
+#+title: =Leetcode=, задача =374=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task374.rs
+  <<task374:Декларації>>
+
+  <<task374:Визначення>>
+
+  fn guessNumber(n: i32, pick: i32) -> i32 {
+      <<task374:Дії>>
+  }
+
+  fn main() {
+      <<task374:Отримання-даних>>
+      println!("{}", guessNumber(n, pick));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task374:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task374:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let n = args[1].parse().unwrap();
+  let pick = args[2].parse().unwrap();
+  println!("{} {}", n, pick);
+#+end_src
+
+* Функція перевірки
+
+#+begin_src rust :noweb-ref task374:Декларації
+  use std::cmp::Ordering;
+#+end_src
+
+#+begin_src rust :noweb-ref task374:Визначення
+  fn guess(num: i32, pick: i32) -> i32 {
+      match num.cmp(&pick) {
+          Ordering::Less => 1,
+          Ordering::Equal => 0,
+          Ordering::Greater => -1
+      }
+  }
+#+end_src
+
+* Визначення початкових меж
+
+Нижня межа завжди дорівнює ~0~.
+
+#+begin_src rust :noweb-ref task374:Дії
+  let mut low = 0;
+#+end_src
+
+Верхня межа дорівнює максимуму (~n~).
+
+#+begin_src rust :noweb-ref task374:Дії
+  let mut high = n;
+#+end_src
+
+* Спеціальний випадок межи
+
+Якщо загадано максимальне число (~n~), то універсальний алгоритм ніколи не назве його. Тому перевіримо
+окремо випадок межи.
+
+#+begin_src rust :noweb-ref task374:Дії
+  if guess(high, pick) == 0 { return high; }
+#+end_src
+
+* Цикл пошуку
+
+При пошуку обчислюємо в циклі результат (~result~) як середнє значення між межами. При обчисленні
+необхідно врахувати можливість переповнення, тому тимчасово обчислимо результат як беззнакове ціле.
+
+Якщо результат вгадано, повертаємо його, інакше змінюємо відповідну межу інтервалу.
+
+Оскільки результат завжди знаходиться всередині циклу, виконання після нього неможливе.
+
+#+begin_src rust :noweb-ref task374:Дії
+  loop {
+      let result = ((high as u32 + low as u32) / 2) as i32;
+      match guess(result, pick) {
+          0 => { return result; },
+          -1 => { high = result; },
+          1 => { low = result; }
+          c => panic!("Invalid guess result {}", c)
+      }
+  }
+#+end_src
+
