@@ -1,0 +1,79 @@
+#+title: =Leetcode=, задача =1657=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task1657.rs
+  <<task1657:Декларації>>
+
+  <<task1657:Визначення>>
+
+  fn close_strings(word1: String, word2: String) -> bool {
+      <<task1657:Дії>>
+  }
+
+  fn main() {
+      <<task1657:Отримання-даних>>
+      println!("{}", close_strings(word1, word2));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task1657:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task1657:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let word1 = args[1].to_string();
+  let word2 = args[2].to_string();
+#+end_src
+
+* Отримання статистики
+
+Отримаємо статистику (кількість символів) у вигляді невпорядкованих мап (~HashMap~) в обох словах.
+
+#+begin_src rust :noweb-ref task1657:Декларації
+  use std::collections::HashMap;
+#+end_src
+
+#+begin_src rust :noweb-ref task1657:Дії
+  let mut s1: HashMap<char, usize> = HashMap::new();
+  for c in word1.chars() { *s1.entry(c).or_default() += 1; }
+  let mut s2: HashMap<char, usize> = HashMap::new();
+  for c in word2.chars() { *s2.entry(c).or_default() += 1; }
+#+end_src
+
+* Порівняння ключів
+
+Обидва слова мають мати однакові набори символів. Тому перетворимо ключі статистик на невпорядковані
+множини і порівняємо їх. Якщо ці множини не співпадають, перевірка очевидно невдала.
+
+#+begin_src rust :noweb-ref task1657:Декларації
+  use std::collections::HashSet;
+#+end_src
+
+#+begin_src rust :noweb-ref task1657:Дії
+  let ks1: HashSet<_> = s1.keys().collect();
+  let ks2: HashSet<_> = s2.keys().collect();
+  if ks1 != ks2 { return false; }
+#+end_src
+
+* Порівняння значень
+
+Для ефективності представимо значення статистик у вигляді впорядкованих сумок (~BinaryHeap~), після чого
+порівняємо ці сумки поелементно за вказаним порядком.
+
+#+begin_src rust :noweb-ref task1657:Декларації
+  use std::collections::BinaryHeap;
+#+end_src
+
+#+begin_src rust :noweb-ref task1657:Дії
+  let mut s1: BinaryHeap<_> = s1.into_values().collect();
+  let mut s2: BinaryHeap<_> = s2.into_values().collect();
+  while !s1.is_empty() && !s2.is_empty() {
+      if s1.pop().unwrap() != s2.pop().unwrap() { return false; }
+  }
+  s1.is_empty() && s2.is_empty()
+#+end_src
+
