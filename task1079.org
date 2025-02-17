@@ -1,0 +1,89 @@
+#+title: =Leetcode=, задача =1079=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task1079.rs
+  <<task1079:Декларації>>
+
+  <<task1079:Визначення>>
+
+  fn num_tile_possibilities(tiles: String) -> i32 {
+      <<task1079:Дії>>
+  }
+
+  fn main() {
+      <<task1079:Отримання-даних>>
+      println!("{}", num_tile_possibilities(tiles));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task1079:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task1079:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let tiles = args[1].to_string();
+#+end_src
+
+* Отримання статистики і виклик пошуку
+
+#+begin_src rust :noweb-ref task1079:Декларації
+  use std::collections::HashMap;
+#+end_src
+
+#+begin_src rust :noweb-ref task1079:Дії
+  let mut stats = HashMap::new();
+  for c in tiles.chars() { *stats.entry(c).or_default() += 1; }
+#+end_src
+
+Для простоти зберемо усі значення в одному масиві.
+
+#+begin_src rust :noweb-ref task1079:Дії
+  let mut stats = stats.into_values().collect();
+#+end_src
+
+Викличемо пошук
+
+#+begin_src rust :noweb-ref task1079:Дії
+  find(&mut stats)
+#+end_src
+
+* Пошук
+
+Пошук виконується за допомогою рекурсивної функції ~find~.
+
+#+begin_src rust :noweb yes :noweb-ref task1079:Визначення
+  fn find(stats: &mut Vec<usize>) -> i32 {
+      <<task1079:find:Дії>>
+  }
+#+end_src
+
+Перебираємо усі значення статистики, для кожного отримаємо частковий результат, і потім сумуємо усі
+часткові результати.
+
+#+begin_src rust :noweb yes :noweb-ref task1079:find:Дії
+  (0..stats.len())
+      .map(|i| {
+          <<task1079:find:Отримати-частковий-результат>>
+      })
+      .sum()
+#+end_src
+
+Для нульових значень статистики повертаємо нульовий результат.
+
+#+begin_src rust :noweb yes :noweb-ref task1079:find:Отримати-частковий-результат
+  if stats[i] == 0 { return 0; }
+#+end_src
+
+Для ненульового значення зменшуємо його, обчислюємо рекурсивно результат і відновлюємо це значення.
+
+#+begin_src rust :noweb yes :noweb-ref task1079:find:Отримати-частковий-результат
+  stats[i] -= 1;
+  let result = find(stats) + 1;
+  stats[i] += 1;
+  result
+#+end_src
+
