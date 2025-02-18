@@ -1,0 +1,144 @@
+#+title: =Leetcode=, задача =2375=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task2375.rs
+  <<task2375:Декларації>>
+    
+  <<task2375:Визначення>>
+
+  fn smallest_number(pattern: String) -> String {
+      <<task2375:Дії>>
+  }
+
+  fn main() {
+      <<task2375:Отримання-даних>>
+      println!("{}", smallest_number(pattern));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task2375:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task2375:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let pattern = args[1].to_string();
+#+end_src
+
+* Виклик пошуку
+
+Для простоти визначимо довжину шаблону як ~n~.
+
+#+begin_src rust :noweb-ref task2375:Дії
+  let n = pattern.len();
+#+end_src
+
+Для простоти перетворимо шаблон на вектор літер.
+
+#+begin_src rust :noweb-ref task2375:Дії
+    let pattern: Vec<_> = pattern.chars().collect();
+#+end_src
+
+Визначимо результат (~result~) як вектор фіксованої довжини ~n+1~, який спочатку заповнений нульовими
+значеннями, а в результаті пошуку буде заповнений відповідною послідовністю.
+
+#+begin_src rust :noweb-ref task2375:Дії
+  let mut result = vec![0; n+1];
+#+end_src
+
+При пошуку ми маємо враховувати значення, які вже використано (~is_used~), і перебирати лише значення
+поза цим переліком. Хоча перелік значень, що використано, дуже схожий на впорядковану множину, краще
+зберігати його у вигляді звичайного вектора логічних значень (~bool~) довжини ~9~ (по одному значенню для
+кожної цифри).
+
+#+begin_src rust :noweb-ref task2375:Дії
+  let mut is_used = vec![false; 9];
+#+end_src
+
+Сам пошук може завершитися невдало, але, схоже, задача сформульована так, що рішення завжди є. Тому ми
+можемо просто проігнорувати логічну ознаку успіху пошуку.
+
+Однак, ми маємо обробити особливим чином саму першу літеру, яка може прийняти будь-яке значення від ~1~
+до ~9~, і до рішення призведе перший успішний пошук.
+
+#+begin_src rust :noweb-ref task2375:Дії
+  for d in 1..=9 {
+      result[0] = d;
+      is_used[d-1] = true;
+      if find(&mut result, &pattern, &mut is_used) { break; }
+      result[0] = 0;
+      is_used[d-1] = false;
+  }
+  result.into_iter().map(|d| char::from_digit(d as u32, 10).unwrap()).collect()
+#+end_src
+
+* Рекурсивний пошук
+
+Пошук виконується рекурсивно за допомогою функції ~find~.
+
+#+begin_src rust :noweb yes :noweb-ref task2375:Визначення
+  fn find(result: &mut [usize], pattern: &[char], is_used: &mut [bool]) -> bool {
+      <<task2375:find:Дії>>
+  }
+#+end_src
+
+На черговому кроці рекурсії ми оперуємо лише з залишком векторів результата і шаблона. Однак, вектор
+результата завжди на ~1~ довше вектора шаблона. Тому, якщо більшк короткий залишок шаблона є пустим, ми
+фактично знайшли необхідну послідовнісь, в такому разі повертаємо ознаку успішного пошуку.
+
+#+begin_src rust :noweb-ref task2375:find:Дії
+  if pattern.is_empty() { return true; }
+#+end_src
+
+Діапазон для перебору визначається черговою (першою) літерою шаблона. Якщо це ~D~, то перебір іде від ~1~
+до ~result[0]-1~, інакше, якщо це ~I~, то перебір іде від ~result[0]+1~ до ~9~.
+
+#+begin_src rust :noweb-ref task2375:find:Дії
+  let mut range = match pattern[0] {
+      'D' => 1..=result[0]-1,
+      'I' => result[0]+1..=9,
+      c => panic!("Invalid pattern step {}", c)
+  };
+#+end_src
+
+Перебираємо усі можливі значення з діапазону і знаходимо перше значення, для якого існує рішення (що
+перевіряється для решти результата і шаблона.
+
+#+begin_src rust :noweb yes :noweb-ref task2375:find:Дії
+  range
+      .any(|d| {
+          <<task2375:find:Перевірити-цифру>>
+      })
+#+end_src
+
+Під час перевірки відкидаємо усі цифри, що використано.
+
+#+begin_src rust :noweb-ref task2375:find:Перевірити-цифру
+  if is_used[d-1] { return false; }
+#+end_src
+
+При рекурсивному сході відмічаємо чергову цифру, як використану, та встановлюємо її як наступну цифру
+результату. Не забуваємо, що довжина результата завжди більше ~1~, а в ~result[0]~ завжди знаходиться
+попередня цифра тому працюємо з ~result[1]~.
+
+Якщо пошук успішний, повертаємо успіх.
+
+#+begin_src rust :noweb-ref task2375:find:Перевірити-цифру
+  result[1] = d;
+  is_used[d-1] = true;
+  if find(&mut result[1..], &pattern[1..], is_used) { return true; }
+#+end_src
+
+Якщо пошук завершився невдало, відновлюємо попередній результат і ознаку використання цифри. Повертаємо
+невдалий результат.
+
+#+begin_src rust :noweb-ref task2375:find:Перевірити-цифру
+  result[1] = 0;
+  is_used[d-1] = false;
+  false
+#+end_src
+
+
