@@ -1,0 +1,92 @@
+#+title: =Leetcode=, задача =735=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task735.rs
+  <<task735:Декларації>>
+
+  <<task735:Визначення>>
+
+  fn asteroid_collision(asteroids: Vec<i32>) -> Vec<i32> {
+      let mut result = vec![];
+      <<task735:Дії>>
+      result
+  }
+
+  fn main() {
+      <<task735:Отримання-даних>>
+      println!("{:?}", asteroid_collision(asteroids));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task735:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task735:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let asteroids: Vec<i32> = args[1]
+      .trim_start_matches('[')
+      .trim_end_matches(']')
+      .split(',')
+      .map(|item| item.parse().unwrap())
+      .collect();
+#+end_src
+
+* Обробка астероїдів
+
+#+begin_src rust :noweb yes :noweb-ref task735:Дії
+  for a in asteroids {
+      <<task735:Обробити-астероїд>>
+  }
+#+end_src
+
+Якщо результат пустий, або астероїд рухається вправо, зіткнень не відбувається, тому просто додаємо
+астероїд до результату.
+
+#+begin_src rust :noweb-ref task735:Обробити-астероїд
+  if result.is_empty() || a > 0 { result.push(a); continue; }
+#+end_src
+
+Оскільки тепер астероїд завідомо рухається вліво, для зручності змінимо його знак, зробивши значення
+позитивним.
+
+#+begin_src rust :noweb-ref task735:Обробити-астероїд
+  let a = -a;
+#+end_src
+
+Виштовхуємо з результату астероїди, поки:
+
+- результат не є пустим;
+- останній астероїд рухається вправо (~last>0~);
+- останній астероїд за розміром менше нового (~last<a~).
+
+#+begin_src rust :noweb-ref task735:Обробити-астероїд
+  while !result.is_empty()
+      && *result.last().unwrap() > 0
+      && *result.last().unwrap() < a {
+          result.pop();
+      }
+#+end_src
+
+Коли цикл закінчується, перевіряємо, чи має бути черговий астероїд доданий до результата. Це відбувається
+в двох випадках:
+
+- результат є пустим;
+- останній астероїд рухається вліво (~last<0~).
+
+При додаванні нового астероїда враховуємо, що ми раніше змінювали його знак.
+
+#+begin_src rust :noweb-ref task735:Обробити-астероїд
+  if result.is_empty() || *result.last().unwrap() < 0 { result.push(-a); continue; }
+#+end_src
+
+Особливим випадком є варіант, коли останній астероїд за розміром дорівнює новому. В такому випадку ми не
+додаємо новий астероїд, а навпаки, вилучаємо навіть останній.
+
+#+begin_src rust :noweb-ref task735:Обробити-астероїд
+  if *result.last().unwrap() == a { result.pop(); continue; }
+#+end_src
+
