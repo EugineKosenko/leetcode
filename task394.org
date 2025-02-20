@@ -1,0 +1,94 @@
+#+title: =Leetcode=, задача =394=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task394.rs
+  <<task394:Декларації>>
+
+  <<task394:Визначення>>
+
+  fn decode_string(s: String) -> String {
+      <<task394:Дії>>
+  }
+
+  fn main() {
+      <<task394:Отримання-даних>>
+      println!("{}", decode_string(s));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task394:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task394:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let s = args[1].to_string();
+#+end_src
+
+* Виклик побудови
+
+Сама побудова рядка виконується рекурсивно, при цьому ми передаємо в функцію ітератор по літерах
+вихідного рядка.
+
+#+begin_src rust :noweb-ref task394:Дії
+  find(&mut s.chars().peekable())
+#+end_src
+
+* Побудова результата
+
+Функція ~find~ приймає ітератор по літерах вихідного рядка ~cs~ (=Character Sequence=) та результат.
+
+#+begin_src rust :noweb yes :noweb-ref task394:Декларації
+  use std::str::Chars;
+  use std::iter::Peekable;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task394:Визначення
+  fn find(cs: &mut Peekable<Chars<'_>>) -> String {
+      let mut result = String::new();
+      <<task394:find:Дії>>
+      result
+  }
+#+end_src
+
+На черговому рівні розглядаємо ітератор як поток фрагментів, з яких кожен фрагмент може бути або
+(під)рядком літер, або кодовим фрагментом, який завжди починається з цифри. Для простоти розглядаємо
+підрядок літер послідовно, а коли знаходимо кодовий фрагмент, виконуємо рекурсивний пошук шаблона і
+розмножуємо його відповідно до умов задачі.
+
+На першому кроці рекурсії рядок закінчується потоком, однак, на наступних кроках цикл завершується, коли
+наступним символом в потоці є символ завершення кодового фрагмента (права/закриваюча квадратна дужка ~]~).
+
+#+begin_src rust :noweb yes :noweb-ref task394:find:Дії
+  while let Some(c) = cs.next() {
+      if c == ']' { break; }
+      if c.is_ascii_digit() {
+          <<task394:find:Обробити-кодовий-фрагмент>>
+      } else {
+          result.push(c);
+      }
+  }
+#+end_src
+
+Кодовий фрагмент, що починається з цифри, містить спочатку кількість повторень обчислимо цю кількість
+цифра за цифрою, закінчуючи аналіз, коли наступним символом є ліва/відкриваюча квадратна дужка (~[~).
+
+#+begin_src rust :noweb yes :noweb-ref task394:find:Обробити-кодовий-фрагмент
+  let mut k = c.to_digit(10).unwrap();
+  loop {
+      let c = cs.next().unwrap();
+      if c == '[' { break; }
+      k = 10 * k + c.to_digit(10).unwrap();
+  }
+#+end_src
+
+Писля отримання кількості отримуємо рекурсивно шаблон і розміщуємо його в результаті ~k~ раз.
+
+#+begin_src rust :noweb yes :noweb-ref task394:find:Обробити-кодовий-фрагмент
+  let pattern = find(cs);
+  for _ in 0..k { result += &pattern; }
+#+end_src
+
