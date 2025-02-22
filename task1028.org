@@ -1,0 +1,240 @@
+#+title: =Leetcode=, задача =1028=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task1028.rs
+  <<task1028:Декларації>>
+
+  <<task1028:Визначення>>
+
+  fn recover_from_preorder(traversal: String) -> Option<Rc<RefCell<TreeNode>>> {
+      <<task1028:Дії>>
+  }
+
+  fn main() {
+      <<task1028:Отримання-даних>>
+      println!("{:?}", TreeNode::show(&recover_from_preorder(traversal)));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task1028:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task1028:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let traversal = args[1].to_string();
+#+end_src
+
+* Дерево
+
+Визначимо вузли дерева.
+
+#+begin_src rust :noweb-ref task1028:Декларації
+  use std::rc::Rc;
+  use std::cell::RefCell;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task1028:Визначення
+  #[derive(Debug, PartialEq, Eq)]
+  struct TreeNode {
+      val: i32,
+      left: Option<Rc<RefCell<TreeNode>>>,
+      right: Option<Rc<RefCell<TreeNode>>>,
+  }
+
+  impl TreeNode {
+      #[inline]
+      fn _new(val: i32) -> Self { Self { val, left: None, right: None } }
+      <<task1028:TreeNode:Визначення>>
+  }
+#+end_src
+
+** TODO Відображення
+
+Відображення реалізовано "брудно", оскільки для правильної реалізації треба вивчати більш детально
+специфікацію дерев.
+
+Для відлогодження дерево перетворюється на масив значень в порядку, що визначається рекурсивним
+=BFS=-обходом дерева.
+
+#+begin_src rust :noweb yes :noweb-ref task1028:TreeNode:Визначення
+  fn show(root: &Option<Rc<RefCell<Self>>>) -> Vec<Option<i32>> {
+      <<task1028:TreeNode:show:Дії>>
+  }
+#+end_src
+
+Якщо дерево пусте, повертається пустий вектор, в іншому випадку додаємо до результата значення кореневого
+вузла, потім додаємо до результата ліве і праве значення, а потім викликаємо обхід рекурсивно для лівої і
+правої частини.
+
+#+begin_src rust :noweb-ref task1028:TreeNode:show:Дії
+  match root {
+      None => vec![],
+      Some(root) => {
+          let root = root.borrow();
+          let mut result = vec![Some(root.val)];
+          Self::show_(root, &mut result);
+          result
+      }
+  }
+#+end_src
+
+Тут важливо, що значення виводяться спочатку, тому функцію доведеться розділити на оболонку (власне
+~show~) і внутрішнє рекурсивне ядро (~show_~).
+
+#+begin_src rust :noweb yes :noweb-ref task1028:Декларації
+  use std::cell::Ref;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task1028:TreeNode:Визначення
+  fn show_(root: Ref<'_, Self>, result: &mut Vec<Option<i32>>) {
+      <<task1028:TreeNode:show_:Дії>>
+  }
+#+end_src
+
+Якщо обидва вузли пусті, нічого не додаємо до результата.
+
+#+begin_src rust :noweb-ref task1028:TreeNode:show_:Дії
+  if root.left.is_none() && root.right.is_none() { return; }
+#+end_src
+
+У внутрішній функції ~show_~ спочатку виводимо значення лівого та правого вузлів, при цьому для пустого
+лівого вузла виводимо ~None~, а пустий правий просто ігноруємо.
+
+#+begin_src rust :noweb-ref task1028:TreeNode:show_:Дії
+  result.push(root.left.as_ref().map(|n| n.borrow().val));
+  if let Some(right) = &root.right { result.push(Some(right.borrow().val)); }
+#+end_src
+
+Після цього виводимо рекурсивно лівий та правий вузол. Знову, для пустого лівого вузла виводимо ~None~, а
+пустий правий вузол просто ігноруємо.
+
+#+begin_src rust :noweb-ref task1028:TreeNode:show_:Дії
+  match &root.left {
+      None => { result.push(None); }
+      Some(left) => { Self::show_(left.borrow(), result); }
+  }
+  if let Some(right) = &root.right { Self::show_(right.borrow(), result); }
+#+end_src
+
+* Ітератор обходу
+
+Для простоти створимо ітератор обходу, який замість "сирого" потоку символів буде повертати пари з
+глибини і значення.
+
+#+begin_src rust :noweb-ref task1028:Декларації
+  use std::iter::Peekable;
+  use std::str::Chars;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task1028:Визначення
+  struct Traversal<'a>(Peekable<Chars<'a>>);
+
+  impl<'a> Traversal<'a> {
+      fn new(s: &'a str) -> Self { Self(s.chars().peekable()) }
+      <<task1028:Traversal:Визначення>>
+  }
+
+  impl Iterator for Traversal<'_> {
+      type Item = (usize, i32);
+      fn next(&mut self) -> Option<Self::Item> {
+          <<task1028:Traversal:Iterator:next:Дії>>
+      }
+  }
+#+end_src
+
+Дивимося наступний символ з потоку. Якщо поток завершився, ітератор також завершується.
+
+#+begin_src rust :noweb-ref task1028:Traversal:Iterator:next:Дії
+  let Some(&c) = self.0.peek() else { return None; };
+#+end_src
+
+При визначенні результату виконуємо два етапи, спочатку отримуємо глибину по кількості рисок (~-~ ), а
+потім значення. Окремо обробляємо ситуацію, коли рисок нема, тоді глибина дорівнює ~0~.
+
+#+begin_src rust :noweb yes :noweb-ref task1028:Traversal:Iterator:next:Дії
+  let (mut depth, mut value) = (0, 0);
+  if c == '-' {
+      <<task1028:Traversal:Iterator:next:Отримати-глибину>>
+  }
+  <<task1028:Traversal:Iterator:next:Отримати-значення>>
+  Some((depth, value))
+#+end_src
+
+При отриманні глибини нарощуємо лічильник, поки наступна літера не стане цифрою.
+
+#+begin_src rust :noweb-ref task1028:Traversal:Iterator:next:Отримати-глибину
+  while let Some('-') = self.0.peek() { self.0.next().unwrap(); depth += 1; }
+#+end_src
+
+При отриманні значення витягуємо з потоку цифри, поки потік не закінчиться, або наступна літера буде
+рискою (~-~).
+
+#+begin_src rust :noweb-ref task1028:Traversal:Iterator:next:Отримати-значення
+  while let Some('0'..='9') = self.0.peek() {
+      value = 10 * value + self.0.next().unwrap().to_digit(10).unwrap() as i32;
+  }
+#+end_src
+
+* Побудова дерева
+
+Дерево будується рекурсивно за допомогою функції ~find~, яка приймає потік пар глибина-значення та
+глибину, на основі яких будує дерево.
+
+#+begin_src rust :noweb yes :noweb-ref task1028:Визначення
+  fn find(traversal: &mut Peekable<Traversal>, depth: usize) -> Option<Rc<RefCell<TreeNode>>> {
+      <<task1028:find:Дії>>
+  }
+#+end_src
+
+Перевіримо глибину наступної пари (=Next Depth=). Якщо наступної пари нема, повертаємо пусте
+дерево.
+
+#+begin_src rust :noweb-ref task1028:find:Дії
+  let Some((ndepth, _)) = traversal.peek() else { return None; };
+#+end_src
+
+Порівняємо поточну глибину (~depth~) з наступною (~ndepth~):
+
+- якщо поточна глибина більше наступної, то треба повертатися на верхній рівень, тому повертаємо пусте
+  дерево;
+- якщо поточна глибина дорівнює наступній, витягуємо наступну пару, створюємо черговий вузол і будуємо
+  рекурсивно піддерева;
+- якщо поточна глибина менше наступної, то вона завжди рівно на одиницю менше, і мала бути оброблена у
+  попередньому випадку; тому, цей варіант неприпустимий і викликає помилку.
+
+#+begin_src rust :noweb yes :noweb-ref task1028:Декларації
+  use std::cmp::Ordering;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task1028:find:Дії
+  match depth.cmp(&ndepth) {
+      Ordering::Greater => None,
+      Ordering::Equal => {
+          <<task1028:find:Побудувати-вузол>>
+      },
+      Ordering::Less => panic!("Invalid traversal")
+  }
+#+end_src
+
+При побудові вузла витягуємо з потоку наступне значення, створюємо для нього вузол, а потім рекурсивно
+створюємо відповідне ліве і праве піддерево наступного рівня.
+
+#+begin_src rust :noweb-ref task1028:find:Побудувати-вузол
+  let (_, val) = traversal.next().unwrap();
+  Some(Rc::new(RefCell::new(TreeNode {
+      val, left: find(traversal, depth + 1), right: find(traversal, depth + 1)
+  })))
+#+end_src
+
+* Виклик побудови
+
+Для кореня викликаємо ~find~ з початковим потоком і глибиною ~0~.
+
+#+begin_src rust :noweb-ref task1028:Дії
+  find(&mut Traversal::new(&traversal).peekable(), 0)
+#+end_src
+
