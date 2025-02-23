@@ -1,0 +1,206 @@
+#+title: =Leetcode=, задача =889=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task889.rs
+  <<task889:Декларації>>
+
+  <<task889:Визначення>>
+
+  fn construct_from_pre_post(preorder: Vec<i32>, postorder: Vec<i32>) -> Option<Rc<RefCell<TreeNode>>> {
+      <<task889:Дії>>
+  }
+
+  fn main() {
+      <<task889:Отримання-даних>>
+      println!("{:?}", TreeNode::show(&construct_from_pre_post(preorder, postorder)));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task889:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task889:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let preorder = args[1]
+      .trim_start_matches('[')
+      .trim_end_matches(']')
+      .split(',')
+      .map(|item| item.parse().unwrap())
+      .collect();
+  let postorder = args[2]
+      .trim_start_matches('[')
+      .trim_end_matches(']')
+      .split(',')
+      .map(|item| item.parse().unwrap())
+      .collect();
+#+end_src
+
+* Дерево
+
+Визначимо вузли дерева.
+
+#+begin_src rust :noweb-ref task889:Декларації
+  use std::rc::Rc;
+  use std::cell::RefCell;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task889:Визначення
+  #[derive(Debug, PartialEq, Eq)]
+  struct TreeNode {
+      val: i32,
+      left: Option<Rc<RefCell<TreeNode>>>,
+      right: Option<Rc<RefCell<TreeNode>>>,
+  }
+
+  impl TreeNode {
+      #[inline]
+      fn new(val: i32) -> Self { Self { val, left: None, right: None } }
+      <<task889:TreeNode:Визначення>>
+  }
+#+end_src
+
+** TODO Відображення
+
+Відображення реалізовано "брудно", оскільки для правильної реалізації треба вивчати більш детально
+специфікацію дерев.
+
+Для відлогодження дерево перетворюється на масив значень в порядку, що визначається рекурсивним
+=BFS=-обходом дерева.
+
+#+begin_src rust :noweb yes :noweb-ref task889:TreeNode:Визначення
+  fn show(root: &Option<Rc<RefCell<Self>>>) -> Vec<Option<i32>> {
+      <<task889:TreeNode:show:Дії>>
+  }
+#+end_src
+
+Якщо дерево пусте, повертається пустий вектор, в іншому випадку додаємо до результата значення кореневого
+вузла, потім додаємо до результата ліве і праве значення, а потім викликаємо обхід рекурсивно для лівої і
+правої частини.
+
+#+begin_src rust :noweb-ref task889:TreeNode:show:Дії
+  match root {
+      None => vec![],
+      Some(root) => {
+          let root = root.borrow();
+          let mut result = vec![Some(root.val)];
+          Self::show_(root, &mut result);
+          result
+      }
+  }
+#+end_src
+
+Тут важливо, що значення виводяться спочатку, тому функцію доведеться розділити на оболонку (власне
+~show~) і внутрішнє рекурсивне ядро (~show_~).
+
+#+begin_src rust :noweb yes :noweb-ref task889:Декларації
+  use std::cell::Ref;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task889:TreeNode:Визначення
+  fn show_(root: Ref<'_, Self>, result: &mut Vec<Option<i32>>) {
+      <<task889:TreeNode:show_:Дії>>
+  }
+#+end_src
+
+Якщо обидва вузли пусті, нічого не додаємо до результата.
+
+#+begin_src rust :noweb-ref task889:TreeNode:show_:Дії
+  if root.left.is_none() && root.right.is_none() { return; }
+#+end_src
+
+У внутрішній функції ~show_~ спочатку виводимо значення лівого та правого вузлів, при цьому для пустого
+лівого вузла виводимо ~None~, а пустий правий просто ігноруємо.
+
+#+begin_src rust :noweb-ref task889:TreeNode:show_:Дії
+  result.push(root.left.as_ref().map(|n| n.borrow().val));
+  if let Some(right) = &root.right { result.push(Some(right.borrow().val)); }
+#+end_src
+
+Після цього виводимо рекурсивно лівий та правий вузол. Знову, для пустого лівого вузла виводимо ~None~, а
+пустий правий вузол просто ігноруємо.
+
+#+begin_src rust :noweb-ref task889:TreeNode:show_:Дії
+  match &root.left {
+      None => { result.push(None); }
+      Some(left) => { Self::show_(left.borrow(), result); }
+  }
+  if let Some(right) = &root.right { Self::show_(right.borrow(), result); }
+#+end_src
+
+* Побудова результата
+
+Результат будується за допомогою рекурсивної функції ~find~, яка приймає два ітератора з попереднім
+переглядом для префіксного (~preorder~) та суфіксного (~postorder~) обходу.
+
+#+begin_src rust :noweb yes :noweb-ref task889:Декларації
+  use std::iter::Peekable;
+  use std::vec::IntoIter;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task889:Визначення
+  fn find(
+      preorder: &mut Peekable<IntoIter<i32>>,
+      postorder: &mut Peekable<IntoIter<i32>>)
+      -> Option<Rc<RefCell<TreeNode>>> {
+      <<task889:find:Дії>>
+  }
+#+end_src
+
+Ітератор префіксного обходу завершується раніше, тому, якщо він пустий, повертаємо пусте дерево. Інакше
+ми можемо значення префіксного обходу ~prevalue~.
+
+#+begin_src rust :noweb yes :noweb-ref task889:find:Дії
+  let Some(prevalue) = preorder.next() else { return None; };
+#+end_src
+
+Створюємо вузол результата.
+
+#+begin_src rust :noweb yes :noweb-ref task889:find:Дії
+  let mut result = TreeNode::new(prevalue);
+#+end_src
+
+Якщо значення вузла дорівнює наступному значенню суфіксного обходу, то це кінцевий вузол
+(лист). Виштовхуємо наступне значення суфіксного обходу і повертаємо створений результат.
+
+#+begin_src rust :noweb yes :noweb-ref task889:find:Дії
+  if prevalue == *postorder.peek().unwrap() {
+      postorder.next().unwrap();
+      return Some(Rc::new(RefCell::new(result)));
+  }
+#+end_src
+
+Якщо наступне значення суфіксного обходу не співпадає зі значенням вузла, рекурсивно створюємо дочірні
+вузли. Спочатку створюємо лівий вузол.
+
+#+begin_src rust :noweb yes :noweb-ref task889:find:Дії
+  result.left = find(preorder, postorder);
+#+end_src
+
+Після цього, якщо наступний елемент суфіксного обходу співпадає зі значенням вузла, то правий вузол
+пустий, інакше рекурсивно створюємо правий вузол.
+
+#+begin_src rust :noweb yes :noweb-ref task889:find:Дії
+  if prevalue != *postorder.peek().unwrap() { result.right = find(preorder, postorder); }
+#+end_src
+
+Після цього обхід точно має завершитись, і наступний елемент суфіксного обходу має точно дорівнювати
+значенню вузла.
+
+#+begin_src rust :noweb yes :noweb-ref task889:find:Дії
+  let postvalue = postorder.next().unwrap();
+  debug_assert_eq!(prevalue, postvalue);
+  Some(Rc::new(RefCell::new(result)))
+#+end_src
+
+* Виклик пошуку
+
+Перед викликом перетворимо вектори на ітератори.
+
+#+begin_src rust :noweb yes :noweb-ref task889:Дії
+  find(&mut preorder.into_iter().peekable(), &mut postorder.into_iter().peekable())
+#+end_src
+
