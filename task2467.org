@@ -1,0 +1,199 @@
+#+title: =Leetcode=, задача =2467=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task2467.rs
+  <<task2467:Декларації>>
+
+  <<task2467:Визначення>>
+
+  fn most_profitable_path(edges: Vec<Vec<i32>>, bob: i32, amount: Vec<i32>) -> i32 {
+      <<task2467:Дії>>
+  }
+
+  fn main() {
+      <<task2467:Отримання-даних>>
+      println!("{}", most_profitable_path(edges, bob, amount));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task2467:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task2467:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let edges = args[1]
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split("],[")
+      .map(|row| row
+           .trim_start_matches('[')
+           .trim_end_matches(']')
+           .split(',')
+           .map(|item| item.parse().unwrap())
+           .collect())
+      .collect();
+  let bob = args[2].parse().unwrap();
+  let amount = args[3]
+      .trim_start_matches('[')
+      .trim_end_matches(']')
+      .split(',')
+      .map(|item| item.parse().unwrap())
+      .collect();
+#+end_src
+
+* Побудова зв'язків
+
+Представлення дерева у вигляді переліку дуг не є ефективним, тому створимо дві невпорядкованих мапи
+(~HashMap~), одна, зворотня (=reverse=), представлятиме попередній вузол, а інша, пряма (=forward=) ---
+перелік наступних вузлів для кожного вузла.
+
+#+begin_src rust :noweb-ref task2467:Декларації
+  use std::collections::{HashMap, HashSet};
+#+end_src
+
+#+begin_src rust :noweb-ref task2467:Дії
+  let mut forward: HashMap<usize, HashSet<usize>> = HashMap::new();
+  let mut back = HashMap::new();
+#+end_src
+
+Тут складність в тому, що дуги представлені невпорядковано, деякі з них мають /зворотній/ (=inverse=)
+напрямок, в результаті дерево виглядає скоріше як ліс (направлений ациклічний граф з багатьма
+коренями). Тому ми маємо будувати мапи за допомогою =BFS=, починаючи з вузла ~0~.
+
+Спочатку переформатуємо перелік дуг на мапу усіх зв'язків, в обох напрямках, який потім розділимо на мапи
+для кожного напрямку окремо.
+
+#+begin_src rust :noweb-ref task2467:Дії
+  let mut pool: HashMap<_, HashSet<_>> = HashMap::new();
+  for edge in edges {
+      let n1 = edge[0] as usize;
+      let n2 = edge[1] as usize;
+      pool.entry(n1).or_default().insert(n2);
+      pool.entry(n2).or_default().insert(n1);
+  }
+#+end_src
+
+Створимо чергу вузлів для обробки, спочатку вона містить лише кореневий вузол ~0~. Оскільки порядок
+обробки черги неважливий, скористаємося звичайним вектором.
+
+#+begin_src rust :noweb-ref task2467:Дії
+  let mut queue = vec![0];
+#+end_src
+
+Перебираємо вузли з черги, поки вона не закінчиться.
+
+#+begin_src rust :noweb yes :noweb-ref task2467:Дії
+  while let Some(node) = queue.pop() {
+      <<task2467:Обробити-вузол>>
+  }
+#+end_src
+
+Для чергового вузла вилучаємо з ~pool~ перелік усіх наступних вузлів, якщо вони є, інакше нічого
+робити не треба. Для кожного наступного вузла:
+
+- додаємо зворотній зв'язок;
+- додаємо вузол до черги;
+- вилучаємо "неправильні" прямі зв'язки з ~pool~;
+
+Після цього додаємо перелік наступних вузлів до ~forward~.
+
+#+begin_src rust :noweb-ref task2467:Обробити-вузол
+  if let Some(nexts) = pool.remove(&node) {
+      for next in nexts.iter() {
+          back.insert(*next, node);
+          queue.push(*next);
+          pool.get_mut(next).unwrap().remove(&node);
+      }
+      forward.insert(node, nexts);
+  }
+#+end_src
+
+* Пошук шляху Боба
+
+Шлях Боба визначається однозначно проходом по зворотнім зв'язкам (=back=). Однак, для ефективності, нам
+потрібен не сам шлях, а лише ознака того, чи відвідував Боб конкретний вузол, і якщо відвідував, то на
+якому кроці. Представимо цю інформацію також у вигляді невпорядкованої мапи (~HashMap~) ~bob_path~.
+
+Під час публікації несподівано виник випадок ~edges=[[0,2],[0,4],[1,3],[1,2]]~ та ~bob=1~. Тут граф не є
+деревом а, скоріше, лісом, тому що має два кореня, а Боб не досягає вузла ~0~. Тому використовуємо більш
+загальну умову наявності попередника взагалі.
+
+#+begin_src rust :noweb-ref task2467:Дії
+  let mut bob = bob as usize;
+  let mut bob_path = HashMap::from([(bob, 0)]);
+  let mut step = 0;
+  while bob != 0 {
+      bob = *back.get(&bob).unwrap();
+      step += 1;
+      bob_path.insert(bob, step);
+  }
+#+end_src
+
+* Пошук оптимального шляху Аліси
+
+Оптимальний шлях Аліси виконується рекурсивно за допомогою =DFS=. Рекурсивна функція пошуку ~find~
+приймає:
+
+- поточний вузол Аліси ~alice~;
+- номер кроку Аліси ~step~;
+- мапу прямих зв'язків ~forward~;
+- перелік вартостей вузлів ~amount~;
+- мапу шляху Боба ~bob_path~.
+
+Результатом є оптимальний дохід Аліси для поточного вузла.
+
+#+begin_src rust :noweb yes :noweb-ref task2467:Визначення
+  fn find(alice: usize, step: usize,
+          forward: &HashMap<usize, HashSet<usize>>,
+          amount: &Vec<i32>, bob_path: &HashMap<usize, usize>) -> i32 {
+      <<task2467:find:Дії>>
+  }
+#+end_src
+
+Дохід Аліси для початкового вузла отримається наступним викликом.
+
+#+begin_src rust :noweb-ref task2467:Дії
+  find(0, 0, &forward, &amount, &bob_path)
+#+end_src
+
+Знайдемо вартість шляху для поточного вузла. Це значення суттєво залежить від того, чи відвідував Боб цей
+вузол раніше, і чи знаходиться він в поточному вузлі Аліси зараз. Тому порівняємо номер поточного кроку
+Аліси ~step~ з номером кроку Боба для того ж вузла ~bob_path[alice]~:
+
+- якщо номер кроку Боба менше номеру кроку Аліси, то Боб побував там раніше, тому вартість вузла дорівнює
+  ~0~;
+- якщо номер кроку Боба дорівнює номеру кроку Аліси, то вони обидва знаходяться в одному вузлі, тому
+  вартість вузла знижується вдвічі;
+- якщо номер кроку Боба більше номеру кроку Аліси, то Аліса побувала в цьому вузлі раніше Боба, тому
+  вартість вузла використовується як є.
+ 
+Окремо розглядаємо випадок, коли Боб взагалі не відвідував поточний вузол, в такому випадку вартість
+також залишається без змін.
+
+#+begin_src rust :noweb-ref task2467:Декларації
+  use std::cmp::Ordering;
+#+end_src
+
+#+begin_src rust :noweb-ref task2467:find:Дії
+  let result = match bob_path.get(&alice) {
+      None => amount[alice],
+      Some(bob_step) => match bob_step.cmp(&step) {
+          Ordering::Less => 0,
+          Ordering::Equal => amount[alice]/2,
+          Ordering::Greater => amount[alice]
+      }
+  };
+#+end_src
+
+Після цього додаємо до вартості результата максимальне значення для усіх наступних вузлів. Окремо
+розглядаємо випадок, коли вузол кінцевий і у нього взагалі нема наступних вузлів.
+
+#+begin_src rust :noweb-ref task2467:find:Дії
+  result + forward.get(&alice).unwrap().iter()
+      .map(|&alice| find(alice, step + 1, forward, amount, bob_path))
+      .max().unwrap_or(0)
+#+end_src
