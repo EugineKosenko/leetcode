@@ -1,0 +1,139 @@
+#+title: =Leetcode=, задача =1524=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task1524.rs
+  <<task1524:Декларації>>
+
+  <<task1524:Визначення>>
+
+  fn num_of_subarrays(arr: Vec<i32>) -> i32 {
+      let mut result = 0;
+      <<task1524:Дії>>
+      result
+  }
+
+  fn main() {
+      <<task1524:Отримання-даних>>
+      println!("{}", num_of_subarrays(arr));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task1524:Декларації
+  use std::{env, fs, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref task1524:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let arr = io::BufReader::new(file)
+      .lines().next().unwrap().unwrap()
+      .trim_start_matches('[')
+      .trim_end_matches(']')
+      .split(',')
+      .map(|item| item.parse().unwrap())
+      .collect();
+#+end_src
+
+* Пошук рішення
+
+Створюємо два лічильника, для парних (=even=) та непарних (=odd=) масивів.
+
+#+begin_src rust :noweb-ref task1524:Дії
+  let mut even = 0;
+  let mut odd = 0;
+#+end_src
+
+Обробляємо значення масива одне за одним.
+
+#+begin_src rust :noweb yes :noweb-ref task1524:Дії
+  for v in arr {
+      <<task1524:Обробити-значення>>
+  }
+#+end_src
+
+Для кожного значення лічильники змінюються в залежності від того, чи є значення парним чи непарним:
+
+- парні значення не змінюють парності сум, тому просто нарощуємо ~even~;
+- непарні значення змінюють парності сум, тому нарощуємо ~even~ і міняємо їх місцями.
+
+Тут дуже тонкий момент: ми не маємо нарощувати кількість непарних значень ~odd~, оскільки це не є
+остаточне значення.
+
+#+begin_src rust :noweb-ref task1524:Обробити-значення
+  (even, odd) = if v % 2 == 0 { (even + 1, odd) } else { (odd, even + 1) };
+#+end_src
+
+Додаємо кількість непарних рішень до результата.
+
+#+begin_src rust :noweb-ref task1524:Обробити-значення
+  result = (result + odd) % (10i32.pow(9) + 7);
+#+end_src
+
+* COMMENT Повільна версія
+
+Перебираємо усі можливі комбінації =i= і =j=.
+
+#+begin_src rust :noweb-ref task1524:Дії
+  println!("{}", arr.len());
+  for i in 0..arr.len() {
+      let mut sum = arr[i];
+      if sum % 2 == 1 { result += 1; }
+      for j in i+1..arr.len() {
+          sum += arr[j];
+          if sum % 2 == 1 { result += 1; }        
+      }
+  }
+#+end_src
+
+* COMMENT Неправильна версія
+
+Цей підхід є неправильним, оскільки підраховує /послідовності/, а не підмасиви, тобто, обираються
+елементи, що не йдуть поспіль.
+
+Головна ідея реалізує алгоритм /динамічного програмування/, де ~dp[n]~ містить кількість підмасивів
+довжини ~n~, при цьому ~dp[n][0]~ містить кількість масивів з парною сумою, а ~dp[n][1]~ --- з
+непарною. Спочатку усі значення ~dp=0~.
+
+#+begin_src rust :noweb-ref task1524:Дії
+  let mut dp = vec![[0, 0]; arr.len()];
+#+end_src
+
+Відповідно до алгоритму будуємо ~dp~ крок за кроком, додаючи кожний раз нове значення вихідного масива,
+що змінює значення ~dp~.
+
+#+begin_src rust :noweb yes :noweb-ref task1524:Дії
+  for (n, v) in arr.into_iter().enumerate() {
+      <<task1524:Обробити-значення>>
+  }
+#+end_src
+
+Обробка суттєво залежить від того, чи є поточне значення ~v~ парним чи непарним. Парні значення ~v~ при
+додаванні не змінюють парність масива, а непарні --- змінюють. Однак, в обох випадках ми оновлюємо ~dp~
+від білших індексів до менших. При цьому розмір змістовної частина ~dp~ збільшується на ~1~, а в самий
+перший елемент ~dp[0]~ значення змінюється особливим чином, як крайовий випадок.
+
+#+begin_src rust :noweb-ref task1524:Обробити-значення
+  if v % 2 == 0 {
+      for i in (0..n).rev() {
+          dp[i+1][0] += dp[i][0];
+          dp[i+1][1] += dp[i][1];
+      }
+      dp[0][0] += 1;
+  } else {
+      for i in (0..n).rev() {
+          dp[i+1][0] += dp[i][1];
+          dp[i+1][1] += dp[i][0];
+      }
+      dp[0][1] += 1;
+  }
+#+end_src
+
+Результатом є сума усіх кількостей непарних масивів.
+
+#+begin_src rust :noweb-ref task1524:Дії
+  dp.into_iter().map(|dp| dp[1]).sum()
+#+end_src
+
