@@ -1,5 +1,7 @@
 #+title: =Leetcode=, задача =1524=
 
+Задача на [[https://en.wikipedia.org/wiki/Maximum_subarray_problem][алгоритм Кадана]].
+
 * Головний файл
 
 #+begin_src rust :noweb yes :tangle src/bin/task1524.rs

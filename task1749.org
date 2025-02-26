@@ -1,0 +1,78 @@
+#+title: =Leetcode=, задача =1749=
+
+Задача на [[https://en.wikipedia.org/wiki/Maximum_subarray_problem][алгоритм Кадана]], див. також задачу [[file:task1524.org][1524]].
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task1749.rs
+  <<task1749:Декларації>>
+
+  <<task1749:Визначення>>
+
+  fn max_absolute_sum(nums: Vec<i32>) -> i32 {
+      <<task1749:Дії>>
+  }
+
+  fn main() {
+      <<task1749:Отримання-даних>>
+      println!("{}", max_absolute_sum(nums));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task1749:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task1749:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let nums = args[1]
+      .trim_start_matches('[')
+      .trim_end_matches(']')
+      .split(',')
+      .map(|item| item.parse().unwrap())
+      .collect();
+#+end_src
+
+* Пошук максимальної суми
+
+Відповідно до алгоритма, перебираємо елементи масива і будуємо поточну суму ~sum~ і найкращу суму
+~best1~.
+
+#+begin_src rust :noweb-ref task1749:Дії
+  let mut best1 = i32::MIN;
+  let mut sum = 0;
+  for n in &nums {
+      let n = *n;
+      sum = n.max(sum + n);
+      best1 = best1.max(sum);
+  }
+#+end_src
+
+* Пошук мінімальної суми
+
+Повторюємо той саме цикл, але тепер знаходимо мінімальну суму.
+
+#+begin_src rust :noweb-ref task1749:Дії
+  let mut best2 = i32::MAX;
+  let mut sum = 0;
+  for n in nums {
+      sum = n.min(sum + n);
+      best2 = best2.min(sum);
+  }
+#+end_src
+
+Оскільки ми обчислюємо абсолютне значення, поміняємо знак результата.
+
+#+begin_src rust :noweb-ref task1749:Дії
+  best2 = -best2;
+#+end_src
+
+* Отримання результата
+
+Результатом є найбільше з двох значень ~best1~ і ~best2~.
+
+#+begin_src rust :noweb-ref task1749:Дії
+  best1.max(best2)
+#+end_src
