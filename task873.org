@@ -1,0 +1,114 @@
+#+title: =Leetcode=, задача =873=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task873.rs
+  <<task873:Декларації>>
+
+  <<task873:Визначення>>
+
+  fn len_longest_fib_subseq(arr: Vec<i32>) -> i32 {
+      <<task873:Дії>>
+  }
+
+  fn main() {
+      <<task873:Отримання-даних>>
+      println!("{}", len_longest_fib_subseq(arr));
+  }
+#+end_src
+
+* Отримання даних
+
+** З командного рядка
+
+#+begin_src rust :noweb-ref task873:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task873:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let arr = args[1]
+      .trim_start_matches('[')
+      .trim_end_matches(']')
+      .split(',')
+      .map(|item| item.parse().unwrap())
+      .collect();
+#+end_src
+
+** COMMENT З діапазона значень
+
+#+begin_src rust :noweb-ref task873:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task873:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let n = args[1].parse().unwrap();
+  let arr = (1..=n).collect();
+#+end_src
+
+* Множина значень
+
+Для ефективної перевірки наявності значення в масиві створимо невпорядковану множину значень (~HashSet~).
+
+#+begin_src rust :noweb-ref task873:Декларації
+  use std::collections::HashSet;
+#+end_src
+
+#+begin_src rust :noweb-ref task873:Дії
+  let values = arr.iter().copied().collect();
+#+end_src
+
+* Обчислення довжини послідовності
+
+Функція ~find~ обчислює рекурсивно максимальну довжину послідовності, починаючи з двох перших заданих
+значень ~v1~ і ~v2~. При цьому ми для ефективності зберігаємо (/мемоізуємо/) проміжні значення в
+невпорядкованій мапі значень (~HashMap~).
+
+#+begin_src rust :noweb-ref task873:Декларації
+  use std::collections::HashMap;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task873:Визначення
+  fn find(v1: i32, v2: i32, values: &HashSet<i32>, memo: &mut HashMap<(i32, i32), i32>) -> i32 {
+      <<task873:find:Дії>>
+  }
+#+end_src
+
+Якщо пара вже була обчислена (/мемоізована/), повертаємо відповідне значення.
+
+#+begin_src rust :noweb-ref task873:find:Дії
+  if let Some(result) = memo.get(&(v1, v2)) { return *result; }
+#+end_src
+
+Функція викликається таким чином, що перше значення ~v1~ завжди завідомо належить вихідному масиву, тому
+результат завжди, щонайменше, ~1~. Залишається тільки перевірити належність другого значення ~v2~
+вихідному масиву. Якщо воно не належить масиву, послідовність завершується, і довжина решти дорівнює
+~0~. Інакше обчислюємо довжину решти рекурсивно.
+
+#+begin_src rust :noweb-ref task873:find:Дії
+  let result = 1 + if values.contains(&v2) { find(v2, v1 + v2, values, memo) } else { 0 };
+  memo.insert((v1, v2), result);
+  result
+#+end_src
+
+* Пошук результата
+
+Перебираємо усі пари значень вихідного масива і знаходимо ту, яка породжує найдовшу послідовність. При
+цьому, однак, якщо пара вже була обчислена (мемоізована), пропускаємо обчислення. Ми не перевіряємо
+довжину результата в такому випадку, оскільки напевне існує більш довга послідовність, яка включає цю
+пару значень.
+
+Особливим чином обробляємо випадок, коли найдовша послідовність менше ~3~, в такому випадку вважаємо, що
+таких послідовностей взагалі не існує і повертаємо ~0~.
+
+#+begin_src rust :noweb-ref task873:Дії
+  let n = arr.len();
+  let mut memo = HashMap::new();
+  let mut result = 0;
+  for i in 0..n-1 { for j in i+1..n {
+      result = result.max(1 + find(arr[j], arr[i] + arr[j], &values, &mut memo));
+  }}
+  if result < 3 { 0 } else { result }
+#+end_src
+
