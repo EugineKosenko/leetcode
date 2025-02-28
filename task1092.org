@@ -1,0 +1,126 @@
+#+title: =Leetcode=, задача =1092=
+
+Задача вирішується на основі задачі [[https://leetcode.com/problems/longest-common-subsequence/solutions/6406620/dp-with-matrix/?envType=study-plan-v2&envId=leetcode-75][1143]] з модифікаціями.
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task1092.rs
+  <<task1092:Декларації>>
+
+  <<task1092:Визначення>>
+
+  fn shortest_common_supersequence(str1: String, str2: String) -> String {
+      <<task1092:Дії>>
+  }
+
+  fn main() {
+      <<task1092:Отримання-даних>>
+      println!("{}", shortest_common_supersequence(str1, str2));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task1092:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task1092:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let str1 = args[1].to_string();
+  let str2 = args[2].to_string();
+#+end_src
+
+* Пошук найдовшої спільної послідовності
+
+Для зручності дамо корокті назви довжині рядків та перетворимо вихідні рядки на зрізи байтів.
+
+#+begin_src rust :noweb-ref task1092:Дії
+  let (n1, n2) = (str1.len(), str2.len());
+  let (str1, str2) = (str1.as_bytes(), str2.as_bytes());
+#+end_src
+
+Створимо матрицю рішень /динамічного програмування/ (=Dynamic Programming=, ~dp~). Ця матриця містить
+рядки, але пустий рядок не є відсутністю значення, тому зберігаємо ~Option<Vec<u8>>~. Для ефективності
+працюватимо з посиланнями на рядки, тому треба заповнити нульовий рядок і стовпчик матриці пустими
+рядками.
+
+#+begin_src rust :noweb-ref task1092:Дії
+  let mut dp = vec![vec![None; n2+1]; n1+1];
+  for i in 0..=n1 { dp[i][0] = Some(Rc::new(RefCell::new(Vec::new()))); }
+  for j in 1..=n2 { dp[0][j] = Some(Rc::new(RefCell::new(Vec::new()))); }
+#+end_src
+
+Сама функція пошуку ~find~ є рекурсивною, вона повертає посилання на рішення в матриці рішень ~dp~.
+
+#+begin_src rust :noweb yes :noweb-ref task1092:Декларації
+  use std::rc::Rc;
+  use std::cell::RefCell;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task1092:Визначення
+  fn find(str1: &[u8], str2: &[u8],
+          i: usize, j: usize,
+          dp: &mut Vec<Vec<Option<Rc<RefCell<Vec<u8>>>>>>) -> Rc<RefCell<Vec<u8>>> {
+      <<task1092:find:Дії>>
+  }
+#+end_src
+
+Оскільки всі значення зберігаються в матриці, нема сенсу окремо перевіряти випадки ~i=0~ або ~j=0~, ці
+значення можна одразу брати з матриці. Тому одразу перевіримо наявність рішення в матриці.
+
+#+begin_src rust :noweb-ref task1092:find:Дії
+  if let Some(result) = &dp[i][j] { return result.clone(); }
+#+end_src
+
+В іншому випадку рекурсивно знаходимо нове рішення. Для ефективності ми додаємо спільні літери в кінець
+послідовності.
+
+#+begin_src rust :noweb-ref task1092:Декларації
+  use std::cmp::max_by_key;
+#+end_src
+
+#+begin_src rust :noweb-ref task1092:find:Дії
+  dp[i][j] = Some(Rc::new(RefCell::new(
+      if str1[i-1] == str2[j-1] {
+          let mut result = find(str1, str2, i-1, j-1, dp).borrow().clone();
+          result.push(str1[i-1]);
+          result
+      } else {
+          max_by_key(find(str1, str2, i-1, j, dp), find(str1, str2, i, j-1, dp), |s| s.borrow().len())
+              .borrow().clone()
+      })));
+  dp[i][j].as_ref().unwrap().clone()
+#+end_src
+
+* Пошук найкоротшої спільної послідовності-контейнера (=superset=)
+
+Знайдемо найдовшу спільну послідовність.
+
+#+begin_src rust :noweb-ref task1092:Дії
+  let sstr = find(&str1, &str2, n1, n2, &mut dp);
+  let sstr = sstr.borrow();
+  let n = sstr.len();
+#+end_src
+
+Створимо пустий результат.
+
+#+begin_src rust :noweb-ref task1092:Дії
+  let mut result = String::new();
+#+end_src
+
+Перебираємо послідовності ~str1~, ~str2~ і ~sstr~, порівнюючі літери. Якщо чергова літера першого або
+другого рядка не співпадає з черговою літерою спільної послідовності, додаємо цю літеру до
+результата. Якщо усі трі послідовності мають спільну чергову літеру, додаємо її і просуваємо індекси.
+
+#+begin_src rust :noweb-ref task1092:Дії
+  let (mut i, mut j, mut k) = (0, 0, 0);
+  while i < n1 || j < n2 {
+      if i < n1 && (k >= n || str1[i] != sstr[k]) { result.push(str1[i] as char); i += 1; }
+      if j < n2 && (k >= n || str2[j] != sstr[k]) { result.push(str2[j] as char); j += 1; }
+      if i < n1 && j < n2 && k < n
+          && str1[i] == sstr[k] && str2[j] == sstr[k] { result.push(str1[i] as char); (i, j, k) = (i+1, j+1, k+1); }
+  }
+  result
+#+end_src
+
