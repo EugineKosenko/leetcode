@@ -25,7 +25,7 @@ fn shortest_common_supersequence(str1: String, str2: String) -> String {
     let mut dp = vec![vec![None; n2+1]; n1+1];
     for i in 0..=n1 { dp[i][0] = Some(Rc::new(RefCell::new(Vec::new()))); }
     for j in 1..=n2 { dp[0][j] = Some(Rc::new(RefCell::new(Vec::new()))); }
-    let sstr = find(&str1, &str2, n1, n2, &mut dp);
+    let sstr = find(str1, str2, n1, n2, &mut dp);
     let sstr = sstr.borrow();
     let n = sstr.len();
     let mut result = String::new();

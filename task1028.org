@@ -149,7 +149,7 @@
 Дивимося наступний символ з потоку. Якщо поток завершився, ітератор також завершується.
 
 #+begin_src rust :noweb-ref task1028:Traversal:Iterator:next:Дії
-  let Some(&c) = self.0.peek() else { return None; };
+  let c = *self.0.peek()?;
 #+end_src
 
 При визначенні результату виконуємо два етапи, спочатку отримуємо глибину по кількості рисок (~-~ ), а
@@ -194,7 +194,7 @@
 дерево.
 
 #+begin_src rust :noweb-ref task1028:find:Дії
-  let Some((ndepth, _)) = traversal.peek() else { return None; };
+  let (ndepth, _) = traversal.peek()?;
 #+end_src
 
 Порівняємо поточну глибину (~depth~) з наступною (~ndepth~):
@@ -211,7 +211,7 @@
 #+end_src
 
 #+begin_src rust :noweb yes :noweb-ref task1028:find:Дії
-  match depth.cmp(&ndepth) {
+  match depth.cmp(ndepth) {
       Ordering::Greater => None,
       Ordering::Equal => {
           <<task1028:find:Побудувати-вузол>>

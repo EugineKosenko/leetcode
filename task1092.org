@@ -98,7 +98,7 @@
 Знайдемо найдовшу спільну послідовність.
 
 #+begin_src rust :noweb-ref task1092:Дії
-  let sstr = find(&str1, &str2, n1, n2, &mut dp);
+  let sstr = find(str1, str2, n1, n2, &mut dp);
   let sstr = sstr.borrow();
   let n = sstr.len();
 #+end_src

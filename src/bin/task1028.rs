@@ -48,7 +48,7 @@ impl<'a> Traversal<'a> {
 impl Iterator for Traversal<'_> {
     type Item = (usize, i32);
     fn next(&mut self) -> Option<Self::Item> {
-        let Some(&c) = self.0.peek() else { return None; };
+        let c = *self.0.peek()?;
         let (mut depth, mut value) = (0, 0);
         if c == '-' {
             while let Some('-') = self.0.peek() { self.0.next().unwrap(); depth += 1; }
@@ -60,8 +60,8 @@ impl Iterator for Traversal<'_> {
     }
 }
 fn find(traversal: &mut Peekable<Traversal>, depth: usize) -> Option<Rc<RefCell<TreeNode>>> {
-    let Some((ndepth, _)) = traversal.peek() else { return None; };
-    match depth.cmp(&ndepth) {
+    let (ndepth, _) = traversal.peek()?;
+    match depth.cmp(ndepth) {
         Ordering::Greater => None,
         Ordering::Equal => {
             let (_, val) = traversal.next().unwrap();

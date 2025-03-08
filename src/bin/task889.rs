@@ -41,7 +41,7 @@ fn find(
     preorder: &mut Peekable<IntoIter<i32>>,
     postorder: &mut Peekable<IntoIter<i32>>)
     -> Option<Rc<RefCell<TreeNode>>> {
-    let Some(prevalue) = preorder.next() else { return None; };
+    let prevalue = preorder.next()?;
     let mut result = TreeNode::new(prevalue);
     if prevalue == *postorder.peek().unwrap() {
         postorder.next().unwrap();

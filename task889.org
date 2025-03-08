@@ -154,7 +154,7 @@
 ми можемо значення префіксного обходу ~prevalue~.
 
 #+begin_src rust :noweb yes :noweb-ref task889:find:Дії
-  let Some(prevalue) = preorder.next() else { return None; };
+  let prevalue = preorder.next()?;
 #+end_src
 
 Створюємо вузол результата.
