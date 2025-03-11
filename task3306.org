@@ -1,0 +1,213 @@
+#+title: =Leetcode=, задача =3306=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task3306.rs
+  <<task3306:Декларації>>
+
+  <<task3306:Визначення>>
+
+  fn count_of_substrings(word: String, k: i32) -> i64 {
+      <<task3306:Дії>>
+  }
+
+  fn main() {
+      <<task3306:Отримання-даних>>
+      println!("{}", count_of_substrings(word, k));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task3306:Декларації
+  use std::{env, fs, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref task3306:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let mut lines = io::BufReader::new(file).lines();
+  let word = lines.next().unwrap().unwrap();
+  let k = lines.next().unwrap().unwrap().parse().unwrap();
+#+end_src
+
+Для зручності перетворимо рядок на масив байт.
+
+#+begin_src rust :noweb-ref task3306:Дії
+  let word = word.as_bytes();
+#+end_src
+
+* Довідник голосних
+
+Достатньо зберігати довідник голосних літер ~vcounts~ (=V=owel =C=ount=s=), який є невпорядкованою мапою
+(~HashMap~) кожної голосної в її кількість. Спочатку усі кількості дорівнюють ~0~. Всі літери, що не
+входять до мапи, вважаються приголосними.
+
+#+begin_src rust :noweb-ref task3306:Декларації
+  use std::collections::HashMap;
+#+end_src
+
+#+begin_src rust :noweb-ref task3306:Дії
+  let mut vcounts: HashMap<u8, usize> = "aeiou".chars().map(|c| (c as u8, 0)).collect();
+#+end_src
+
+* Випадок ~k=0~
+
+Основний алгоритм суттєво спирається на індексацію приголосних. Тому обробимо окремо випадок, коли
+приголосні не треба шукати, тобто, ~k=0~. В такому випадку рішення повністю повторює рішення задачі [[https://leetcode.com/problems/number-of-substrings-containing-all-three-characters/solutions/6523226/special-case-of-3306/?envType=daily-question&envId=2025-03-11][1358]].
+
+#+begin_src rust :noweb yes :noweb-ref task3306:Дії
+  let mut result = 0;
+  if k == 0 {
+      <<task3306:Окремий-випадок>>
+  } else {
+      <<task3306:Загальний-метод>>
+  }
+  result
+#+end_src
+
+Однак, при пошуку рішень необхідно враховувати наявність приголосних, які при ~k=0~ взагалі не можуть
+зустрічатися. Тому розбиваємо вихідний рядок на підрядки, для кожного з которих знаходимо кількість
+рішень окремо.
+
+Для кожного підрядка визначаємо окремо його довжину, а довідник голосних зкидуємо.
+
+#+begin_src rust :noweb-ref task3306:Окремий-випадок
+  for word in word.split(|c| !"aeiou".as_bytes().contains(c)).filter(|s| !s.is_empty()) {
+      let n = word.len();
+      for vcount in vcounts.values_mut() { *vcount = 0; }
+      let (mut i, mut j) = (0, 0);
+      while j < n {
+          while j < n && vcounts.values().any(|&c| c == 0) {
+              if let Some(c) = vcounts.get_mut(&word[j]) { *c += 1; }
+              j += 1;
+          }
+          while vcounts.values().all(|&c| c > 0) {
+              result += (1 + n - j) as i64;
+              i += 1;
+              if let Some(c) = vcounts.get_mut(&word[i-1]) { *c -= 1; }
+          }
+      }
+  }
+#+end_src
+
+* Константи
+
+Визначимо довжину слова як ~n~, а ~k~ --- як беззнакове ціле.
+
+#+begin_src rust :noweb-ref task3306:Загальний-метод
+  let n = word.len();
+  let k = k as usize;
+#+end_src
+
+* Індекси
+
+Нехай ~l~ позначує саму ліву літеру вікна, ~m~ --- першу ~k~-ту приголосну після ~l~ (випадок ~k=0~
+розглянуто окремо, а якщо такої приголосної нема, то ~result=0~), а ~r~ --- першу приголосну після ~m~
+(~r=n~, якщо приголосних після ~m~ нема).
+
+Спочатку ~l~ вказує на початок.
+
+#+begin_src rust :noweb-ref task3306:Загальний-метод
+  let mut l = 0;
+#+end_src
+
+Знайдемо початкове значення ~m~, використовуючи лічильник ~ccount~ (=C=onsonant =count=). Водночас
+підрахуємо кількість голосних в тому ж вікні.
+
+Якщо знайти приголосну не вдалося (~m=n~), рішень нема і повертаємо нульовий результат.
+
+#+begin_src rust :noweb-ref task3306:Загальний-метод
+  let mut ccount = 0;
+  let mut m = 0;
+  loop {
+      if let Some(vcount) = vcounts.get_mut(&word[m]) { *vcount += 1; } else { ccount += 1; }
+      if ccount == k { break; }
+      m += 1;
+      if m == n { return 0; }
+  }
+#+end_src
+
+* Повний цикл
+
+Пошук продовжується, поки ~m~ не досягне правого краю. Виконуємо "крок приголосної", в якому обробляємо
+вікно для чергової приголосної.
+
+#+begin_src rust :noweb yes :noweb-ref task3306:Загальний-метод
+  while m < n {
+      <<task3306:Крок-приголосної>>
+  }
+#+end_src
+
+* Пошук наступної приголосної
+
+Знайдемо наступне значення ~r~.
+
+#+begin_src rust :noweb-ref task3306:Крок-приголосної
+  let mut r = m + 1;
+  while r < n && vcounts.contains_key(&word[r]) { r += 1; }
+#+end_src
+
+* Пошук рішень для наступної приголосної
+
+Рухаємо ~m~ в циклі, поки воно не досягне ~r~, виконуючи крок голосних.
+
+#+begin_src rust :noweb yes :noweb-ref task3306:Крок-приголосної
+  while m < r {
+      <<task3306:Крок-голосних>>
+  }
+#+end_src
+
+Якщо усіх голосних достатньо, то знайдено перше рішення, однак, усі більш довші рішення, права межа яких
+не перевищує ~r~, також є рішенням. Тому додаємо кількість усіх таких рішень ~r-m~ до результату.
+
+Тепер можна рухати ~l~ до тих пір, поки достатньо усіх голосних, додаючи необхідну кількість
+рішень. Додатково треба обробити випадок, коли ~l~ пересікає приголосну. Це означає зменшення кількості
+приголосних, і рішення стає неправильним. В такому разі треба просунути ~m~ до ~r~ і завершити просування
+~l~.
+
+#+begin_src rust :noweb yes :noweb-ref task3306:Крок-голосних
+  while vcounts.values().all(|&vcount| vcount > 0)  {
+      result += (r - m) as i64;
+      l += 1;
+      if let Some(vcount) = vcounts.get_mut(&word[l-1]) {
+          ,*vcount -= 1;
+      } else {
+          <<task3306:Просунути-m-до-r>>
+          break;
+      }
+  }
+#+end_src
+
+При просуванні ~m~ треба підрахувати кількість голосних, які увійдуть у вікно.
+
+#+begin_src rust :noweb yes :noweb-ref task3306:Просунути-m-до-r
+  loop {
+      m += 1;
+      if m == r { break; } else { *vcounts.get_mut(&word[m]).unwrap() += 1; }
+  }
+#+end_src
+
+Якщо ~m~ ще не досягло ~r~, просуваємо ~m~ на одиницю вперед. Однак, якщо після цього ~m=r~, просуваємо
+~l~, поки не пропустимо першу приголосну. При цьому підраховуємо кількість голосних, які покидають вікно.
+
+#+begin_src rust :noweb yes :noweb-ref task3306:Крок-голосних
+  if m < r {
+      m += 1;
+      if m == r {
+          <<task3306:Просунути-l-до-наступної-приголосної>>
+      } else {
+          ,*vcounts.get_mut(&word[m]).unwrap() += 1;
+      }
+  }
+#+end_src
+
+Просуваємо ~l~, поки вона не пройде чергову приголосну.
+
+#+begin_src rust :noweb yes :noweb-ref task3306:Просунути-l-до-наступної-приголосної
+  loop {
+      l += 1;
+      if let Some(vcount) = vcounts.get_mut(&word[l-1]) { *vcount -= 1; } else { break; }
+  }
+#+end_src
+
