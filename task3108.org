@@ -1,0 +1,189 @@
+#+title: =Leetcode=, задача =3108=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task3108.rs
+  <<task3108:Декларації>>
+
+  <<task3108:Визначення>>
+
+  pub fn minimum_cost(n: i32, edges: Vec<Vec<i32>>, query: Vec<Vec<i32>>) -> Vec<i32> {
+      <<task3108:Дії>>
+  }
+
+  fn main() {
+      <<task3108:Отримання-даних>>
+      println!("{:?}", minimum_cost(n, edges, query));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task3108:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task3108:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let n = args[1].parse().unwrap();
+  let edges = args[2]
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split("],[")
+      .map(|row| row
+           .trim_start_matches('[')
+           .trim_end_matches(']')
+           .split(',')
+           .map(|item| item.parse().unwrap())
+           .collect())
+      .collect();
+  let query = args[3]
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split("],[")
+      .map(|row| row
+           .trim_start_matches('[')
+           .trim_end_matches(']')
+           .split(',')
+           .map(|item| item.parse().unwrap())
+           .collect())
+      .collect();
+#+end_src
+
+* Побудова зв'язків
+
+Перетворимо перелік ребер ~edges~ на перелік /посилань/ (=link=) у вигляді невпорядкованої мапи
+(~HashMap~), /вузлів/ (=node=) на інші вузли. При цьому в посиланні зберігається не тільки наступний
+елемент, але й вага ребра, тобто, значення є парою з вузла і ваги ребра.
+
+Зауважимо також, що мапа зберігає кожне ребро двічі, в прямому та зворотньому порядку, що обумовлено
+невпорядкованістю графа.
+
+#+begin_src rust :noweb-ref task3108:Декларації
+  use std::collections::HashMap;
+#+end_src
+
+#+begin_src rust :noweb-ref task3108:Дії
+  let mut links: HashMap<usize, Vec<(usize, usize)>> = HashMap::new();
+  for edge in edges {
+      let from = edge[0] as usize;
+      let to = edge[1] as usize;
+      let weight = edge[2] as usize;
+      links.entry(from).or_default().push((to, weight));
+      links.entry(to).or_default().push((from, weight));
+  }
+#+end_src
+
+* Кластери
+
+/Кластером/ (=cluster=) для зручності називається зв'язний компонент графа. Кожен компонент визначається
+його ідентифікатором, який є просто порядковим номером кластера, який отримується в процесі пошуку.
+
+Кожен кластер характеризується повною вагою, яка є побітовим кон'юктивним об'єднанням усіх ваг ребер
+компонента. Ваги кластерів зберігатимемо у вигляді простого вектора ~weights~, який індексується
+ідентифікаторами кластерів. Спочатку вектор ваг пустий.
+
+#+begin_src rust :noweb-ref task3108:Дії
+  let mut weights: Vec<usize> = Vec::new();
+#+end_src
+
+Для кожного кластера визначається також перелік вузлів ~cnodes~ (=C=-luster =Nodes=). Однак для
+ефективності ми зберігаємо цей перелік у вигляді невпорядкованої мапи (~HashMap~) вузлів на
+ідентифікатори кластерів.
+
+#+begin_src rust :noweb-ref task3108:Дії
+  let mut cnodes: HashMap<usize, usize> = HashMap::new();
+#+end_src
+
+* Побудова кластерів
+
+Кластери будуються пошуком вширину (=BFS=).
+
+Визначимо поточну невпорядковану множину (~HashSet~) вузлів ~nodes~. Спочатку вона містить усі вузли
+графа.
+
+#+begin_src rust :noweb-ref task3108:Декларації
+  use std::collections::HashSet;
+#+end_src
+
+#+begin_src rust :noweb-ref task3108:Дії
+  let mut nodes: HashSet<usize> = (0..n as usize).collect();
+#+end_src
+
+В ході алгоритма вузли вилучаються з множини, поки вузлів взагалі не залишиться. З кожного вузла
+будується черговий кластер.
+
+#+begin_src rust :noweb yes :noweb-ref task3108:Дії
+  while let Some(node) = nodes.iter().next().copied() {
+      <<task3108:Побудувати-кластер>>
+  }
+#+end_src
+
+Для чергового кластера визначимо його повну вагу ~weight~, спочатку вона містить найбільше число,
+оскільки всі біти ваги спочатку встановлені.
+
+#+begin_src rust :noweb yes :noweb-ref task3108:Побудувати-кластер
+  let mut weight = usize::MAX;
+#+end_src
+
+Визначимо чергу вузлів кластера. Спочатку вона містить тільки початковий вузол ~node~
+
+#+begin_src rust :noweb yes :noweb-ref task3108:Побудувати-кластер
+  let mut queue = vec![node];
+#+end_src
+
+В циклі обираємо наступний вузол з черги і обробляємо його
+
+#+begin_src rust :noweb yes :noweb-ref task3108:Побудувати-кластер
+  while let Some(node) = queue.pop() {
+      <<task3108:Обробити-вузол>>
+  }
+#+end_src
+
+Після побудови кластера додаємо його повну вагу до ~weights~, автоматично отримуючи ідентифікатор
+наступного кластера.
+
+#+begin_src rust :noweb yes :noweb-ref task3108:Побудувати-кластер
+  weights.push(weight);
+#+end_src
+
+* Обробка вузла
+
+Якщо вузол вже відвідано, пропускаємо крок.
+
+#+begin_src rust :noweb yes :noweb-ref task3108:Обробити-вузол
+  if !nodes.contains(&node) { continue; }
+#+end_src
+
+Видаляємо вузол з переліку ~nodes~ і додаємо його до поточного кластера, ідентифікатор якого визначаємо як довжину вектора ваг.
+
+#+begin_src rust :noweb yes :noweb-ref task3108:Обробити-вузол
+  nodes.remove(&node);
+  cnodes.insert(node, weights.len());
+#+end_src
+
+Для всіх вузлів, що пов'язані з поточним, додаємо їх в чергу обробки, а вагу ребра враховуємо в повній
+вазі кластера за допомогою побітової кон'юнкції.
+
+#+begin_src rust :noweb yes :noweb-ref task3108:Обробити-вузол
+  for (node, weight_) in links.entry(node).or_default() {
+      queue.push(*node);
+      weight &= *weight_;
+  }
+#+end_src
+
+* Обробка запитів
+
+Для кожного запиту, якщо початок і кінець знаходяться в одному кластері, у якості результата отримуємо
+вагу цього кластеру.
+
+#+begin_src rust :noweb yes :noweb-ref task3108:Дії
+  query.into_iter()
+      .map(|query| {
+          let from = *cnodes.get(&(query[0] as usize)).unwrap();
+          let to = *cnodes.get(&(query[1] as usize)).unwrap();
+          if from == to { weights[from] as i32 } else { -1 }
+      })
+      .collect()
+#+end_src
+
