@@ -1,0 +1,164 @@
+#+title: =Leetcode=, задача =2503=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task2503.rs
+  <<task2503:Декларації>>
+    
+  <<task2503:Визначення>>
+
+  fn max_points(grid: Vec<Vec<i32>>, queries: Vec<i32>) -> Vec<i32> {
+      <<task2503:Дії>>
+      result
+  }
+
+  fn main() {
+      <<task2503:Отримання-даних>>
+      println!("{:?}", max_points(grid, queries));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task2503:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref task2503:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let mut lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+  let grid = lines.next().unwrap()
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split("],[")
+      .map(|row| row
+           .trim_start_matches('[')
+           .trim_end_matches(']')
+           .split(",")
+           .map(|item| item.parse().unwrap())
+           .collect())
+      .collect();
+  let queries = lines.next().unwrap()
+      .trim_start_matches('[')
+      .trim_end_matches(']')
+      .split(",")
+      .map(|item| item.parse().unwrap())
+      .collect();
+#+end_src
+
+Додатково позначимо розміри масивів короткими іменами.
+
+#+begin_src rust :noweb-ref task2503:Дії
+  let (m, n, k) = (grid.len(), grid[0].len(), queries.len());
+#+end_src
+
+* Результат
+
+Створимо результат, попередньо заповнивши його нулями. В подальшому алгоритм буде заповнювати комірки
+масиву результата в довільному порядку, але в кінці всі комірки будуть заповнені.
+
+#+begin_src rust :noweb-ref task2503:Дії
+  let mut result = vec![0; k];
+#+end_src
+
+* Переформатування запитів
+
+Перетворимо перелік запитів на впорядковану сумку (~BinaryHeap~), що дозволить нам обробляти запити в
+порядку зростання. Водночас зберігатимо індекси запитів в початковому переліку, щоб правильно формувати
+результат.
+
+#+begin_src rust :noweb-ref task2503:Декларації
+  use std::collections::BinaryHeap;
+  use std::cmp::Reverse;
+#+end_src
+
+#+begin_src rust :noweb-ref task2503:Дії
+  let mut queries: BinaryHeap<(Reverse<i32>, usize)> = queries.into_iter().enumerate()
+      .map(|(i, q)| (Reverse(q), i))
+      .collect();
+#+end_src
+
+* Пошук точок
+
+Шукаємо точки методом =BFS=. При цьому відвідані точки зберігатимо в невпорядкованій множині (~HashSet~)
+~visited~. Таким чином, кількість відвіданих точок (по суті, елемент результата) є просто довжиною
+~visited~.
+
+#+begin_src rust :noweb-ref task2503:Декларації
+  use std::collections::HashSet;
+#+end_src
+
+#+begin_src rust :noweb-ref task2503:Дії
+  let mut visited = HashSet::new();
+#+end_src
+
+Черга пошуку впорядковується за зростанням значення точок, що дозволить враховувати результати обробки
+попереднього запиту. При цьому черга має бути впорядкованою множиною (~BTreeSet~), а не сумку, щоб
+виключити дублі. Спочатку черга містить тільки початкову точку.
+
+#+begin_src rust :noweb-ref task2503:Декларації
+  use std::collections::BTreeSet;
+#+end_src
+
+#+begin_src rust :noweb-ref task2503:Дії
+  let mut queue = BTreeSet::from([(grid[0][0], (0, 0))]);
+#+end_src
+
+Обробку черги продовжуємо, поки не закінчаться або запити, або точки. Важливо, що тут ми не витягаємо
+елементи черг, тому що вони по різному обробляються в подальшому.
+
+#+begin_src rust :noweb yes :noweb-ref task2503:Дії
+  while let Some(&(pv, p@(r, c))) = queue.first() {
+      let Some(&(Reverse(qv), i)) = queries.peek() else { break; };
+      <<task2503:Обробити-точку>>
+  }
+#+end_src
+
+Всі запити, що залишилися після обробки черги, дають один і той же результат, який дорівнює розміру
+матриці.
+
+#+begin_src rust :noweb-ref task2503:Дії
+  for (_, i) in queries { result[i] = visited.len() as i32; }
+#+end_src
+
+* Обробка точки
+
+Якщо значення поточної точки (~pv~) менше значення поточного запиту (~qv~), шукаємо нові точки, інакше
+завершуємо запит.
+
+#+begin_src rust :noweb yes :noweb-ref task2503:Обробити-точку
+  if pv < qv {
+      <<task2503:Знайти-нові-точки>>
+  } else {
+      <<task2503:Завершити-запит>>
+  }
+#+end_src
+
+Перед пошуком нових точок спочатку поміщаємо поточну точку у відвідані і виштовхуємо її з черги.
+
+#+begin_src rust :noweb-ref task2503:Знайти-нові-точки
+  visited.insert(p);
+  queue.pop_first();
+#+end_src
+
+При пошуку нових точок знаходимо сусідів поточної точки, які ще не відвідано, і додаємо їх до черги.
+
+#+begin_src rust :noweb-ref task2503:Знайти-нові-точки
+  for (dr, dc) in [(-1, 0), (0, 1), (1, 0), (0, -1)] {
+      let r = r as isize + dr; if r < 0 || r == m as isize { continue; }
+      let c = c as isize + dc; if c < 0 || c == n as isize { continue; }
+      let p@(r, c) = (r as usize, c as usize);
+      if !visited.contains(&p) { queue.insert((grid[r][c], p)); }
+  }
+#+end_src
+
+Записуємо результат для поточного запиту та переходимо до наступного.
+
+#+begin_src rust :noweb-ref task2503:Завершити-запит
+  result[i] = visited.len() as i32;
+  queries.pop();
+#+end_src
+
