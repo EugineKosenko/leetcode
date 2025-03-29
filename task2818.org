@@ -1,0 +1,189 @@
+#+title: =Leetcode=, задача =2818=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task2818.rs
+  <<task2818:Декларації>>
+
+  <<task2818:Визначення>>
+
+  fn maximum_score(nums: Vec<i32>, k: i32) -> i32 {
+      <<task2818:Дії>>
+      result as i32
+  }
+
+  fn main() {
+      <<task2818:Отримання-даних>>
+      println!("{:?}", maximum_score(nums, k));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task2818:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref task2818:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let mut lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+  let nums = lines.next().unwrap()
+      .trim_start_matches('[')
+      .trim_end_matches(']')
+      .split(", ")
+      .map(|item| item.parse().unwrap())
+      .collect();
+  let k = lines.next().unwrap().parse().unwrap();
+#+end_src
+
+Додатково позначимо розмір масива коротким іменем.
+
+#+begin_src rust :noweb-ref task2818:Дії
+  let n = nums.len();
+#+end_src
+
+* Обчислення ваги
+
+Дуже важливо розрізняти "просту" вагу (=primary score=), як кількість унікальних простих дільників числа
+і повну "вагу", що фігурує в формулюванні задачі, але є лише результатом обчислення (=result=).
+
+Алгоритм пошуку трошки відрізняється від стандартного, оскільки декілька копій дільника мають
+зараховуватись як один. Тому для кожного чергового числа не більше ~sqrt(num)~ перевіряємо, чи є він
+дільником ~num~, після чого зараховуємо цей дільник і відкидаємо усі його копії.
+
+Важливо також, що якщо саме число ~num~ є простим, то його необхідно зарахувати як дільник, але оскільки воно
+більше ~sqrt(num)~, то воно не підпадає в перебір. Тому враховуємо цей особливий випадок, коли після
+обробки ~num~ все ще більше ~1~.
+
+#+begin_src rust :noweb-ref task2818:Дії
+  let scores = nums.iter()
+      .map(|&num| {
+          let mut num = num;
+          let mut score = 0;
+          for d in 2..(num as f64).sqrt().ceil() as i32 {
+              if num % d == 0 {
+                  score += 1;
+                  while num % d == 0 { num /= d; }
+              }                  
+          }
+          if num > 1 { score += 1; }
+          score
+      });
+#+end_src
+
+* Обчислення меж
+
+Для кожного значення ~num~ необхідно знайти ліву (~left~) та праву (~right~) межу, на підставі ваги. Це
+обчислення виконується за допомогою [[https://www.designgurus.io/course-play/grokking-the-coding-interview/doc/introduction-to-monotonic-stack?gad_source=1&gclid=Cj0KCQjwtJ6_BhDWARIsAGanmKfzhhVcJCVP9m1ht0cS9EtndG6DzJnOIGbVa1qGsKoWuI3288p5aukaAlL7EALw_wcB][монотонного стека]], але вимагає два проходи, окремо для ~left~
+(виконується зліва направо) і для ~right~ (виконується зправа наліво).
+
+При пошуку межі створюємо монотонний стек ~idxs~, реалізований у вигляді звичайного вектора (~Vec~), в
+якому значення завжди впорядковані за зменшенням. Для чергового значення ваги (~s~) виштовхуємо зі стека
+усі значення, які менше ~s~. Якщо стек закінчується, то значення межі дорівнює краю (~-1~ для ~left~ і
+~n~ для ~right~, в іншому випадку межа дорівнює першому індексу для якого вага більше або дорівнює ~s~
+(для ~left~), або просто більше (для ~right~). У будь-якому разі додаємо до стека поточну пару ваги і
+індекса.
+
+#+begin_src rust :noweb-ref task2818:Дії
+  let lefts = scores.clone().enumerate()
+      .scan(Vec::new(), |idxs, score@(_, s)| {
+          while let Some(&(_, ls)) = idxs.last() {
+              if ls < s { idxs.pop(); } else { break; }
+          }
+          let result = if idxs.is_empty() { -1 } else { idxs.last().unwrap().0 as i32 };
+          idxs.push(score);
+          Some(result)
+      });
+#+end_src
+
+Для правої межі маємо перебирати значення в зворотньому порядку. Отриманий ітератор доведеться
+перетворити на проміжний вектор, щоб обернути порядок в кінці.
+
+#+begin_src rust :noweb-ref task2818:Дії
+  let rights: Vec<_> = scores.enumerate().rev()
+      .scan(Vec::new(), |idxs, score@(_, s)| {
+          while let Some(&(_, rs)) = idxs.last() {
+              if rs <= s { idxs.pop(); } else { break; }
+          }
+          let result = if idxs.is_empty() { n } else { idxs.last().unwrap().0 } as i32;
+          idxs.push(score);
+          Some(result)
+      })
+      .collect();
+  let rights = rights.into_iter().rev();
+#+end_src
+
+* Обчислення кількості інтервалів
+
+Для кожної пари меж обчислюємо кількість інтервалів ~rcounts~ (=r=-ange =count=). Зазначимо, що 
+
+Однак, для зручності, додамо до кожної кількості додатково її індекс.
+
+#+begin_src rust :noweb-ref task2818:Дії
+  let mut rcounts: Vec<_> = lefts.zip(rights).enumerate()
+      .map(|(i, (l, r))| (i, (i as i32 - l) as u64 * (r - i as i32) as u64))
+      .collect();
+#+end_src
+
+* Сортування кількості інтервалів
+
+Відсортуємо кількість інтервалів за зменшенням значення ~nums~ і зростанням індекса, що дозволить
+розглядати послідовність в необхідному порядку.
+
+#+begin_src rust :noweb-ref task2818:Декларації
+  use std::cmp::Reverse;
+#+end_src
+
+#+begin_src rust :noweb-ref task2818:Дії
+  rcounts.sort_by_key(|&(i, _)| (Reverse(nums[i]), i));
+#+end_src
+
+* Обчислення результата
+
+Перебираємо усі кількості інтервалів. Кожна кількість ~rc~ не може бути більше поточного значення ~k~,
+яке зменшується після кожного кроку. На кожному кроці множимо результат на експоненційне значення
+~num[i]^rc~.
+
+#+begin_src rust :noweb yes :noweb-ref task2818:Дії
+  let mut result = 1;
+  let mut k = k as u64;
+  for (i, rc) in rcounts {
+      let rc = k.min(rc);
+      <<task2818:Домножити-result-на-ступінь>>
+      k -= rc;
+  }
+#+end_src
+
+* TODO Домноження на ступінь
+
+При отриманні результата для великих значень виникає переповнення результата, тому виконуємо домноження,
+обмежуючи значення модулем ~10^9+7~.
+
+#+begin_src rust :noweb-ref task2818:Визначення
+  const MOD: u64 = 10_u64.pow(9) + 7;
+#+end_src
+
+#+begin_src rust
+  for _ in 0..rc { result = (result * nums[i] as u64) % (10u64.pow(9) + 7); }
+#+end_src
+
+Це рішення працює, однак є надто повільним. Реалізуємо швидке піднесення до ступеню, використовуючи
+рекурсивну функцію ~pow~.
+
+#+begin_src rust :noweb-ref task2818:Домножити-result-на-ступінь
+  result = (result * pow(nums[i] as u64, rc)) % MOD;
+#+end_src
+
+#+begin_src rust :noweb-ref task2818:Визначення
+  fn pow(x: u64, n: u64) -> u64 {
+      let x = x as u64;
+      if n == 0 { return 1; }
+      let y = pow(x, n/2);
+      let y = (y * y) % MOD;
+      if n % 2 == 0 { y } else { (y * x) % MOD }
+  }
+#+end_src
+
