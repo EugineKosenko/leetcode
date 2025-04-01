@@ -13,7 +13,7 @@ fn put_marbles(weights: Vec<i32>, k: i32) -> i64 {
 }
 
 fn main() {
-        let args: Vec<String> = env::args().collect();
+    let args: Vec<String> = env::args().collect();
     let weights = args[1]
         .trim_start_matches('[')
         .trim_end_matches(']')
