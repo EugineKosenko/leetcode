@@ -1,0 +1,226 @@
+#+title: =Leetcode=, задача =1123=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task1123.rs
+  <<task1123:Декларації>>
+
+  <<task1123:Визначення>>
+
+  fn lca_deepest_leaves(root: Option<Rc<RefCell<TreeNode>>>) -> Option<Rc<RefCell<TreeNode>>> {
+      <<task1123:Дії>>
+  }
+
+  fn main() {
+      <<task1123:Отримання-даних>>
+      println!("{:?}", TreeNode::show(&lca_deepest_leaves(root)));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task1123:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task1123:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let root = TreeNode::from_vec(
+      &args[1]
+          .trim_start_matches('[')
+          .trim_end_matches(']')
+          .split(',')
+          .map(|item| item.parse().ok())
+          .collect());
+#+end_src
+
+* Дерево
+
+Визначимо вузли дерева.
+
+#+begin_src rust :noweb-ref task1123:Декларації
+  use std::rc::Rc;
+  use std::cell::RefCell;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task1123:Визначення
+  #[derive(Debug, PartialEq, Eq)]
+  struct TreeNode {
+      val: i32,
+      left: Option<Rc<RefCell<TreeNode>>>,
+      right: Option<Rc<RefCell<TreeNode>>>,
+  }
+
+  impl TreeNode {
+      #[inline]
+      fn _new(val: i32) -> Self { Self { val, left: None, right: None } }
+      <<task1123:TreeNode:Визначення>>
+  }
+#+end_src
+
+** Створення
+
+Функція ~from_vec~ створює дерево з вектора. Для простоти вважаємо, що вектор захоплюється і повністю
+знищується в процесі побудови.
+
+#+begin_src rust :noweb yes :noweb-ref task1123:TreeNode:Визначення
+  fn from_vec(vs: &Vec<Option<i32>>) -> Option<Rc<RefCell<TreeNode>>> {
+      <<task1123:TreeNode:from-vec:Дії>>
+  }
+#+end_src
+
+Функція викликає внутрішню рекурсивну реалізацію, вказуючи індекс вузла у векторі джерела ~vs~.
+
+#+begin_src rust :noweb yes :noweb-ref task1123:TreeNode:from-vec:Дії
+  Self::from_vec_(0, &vs)
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task1123:TreeNode:Визначення
+  fn from_vec_(i: usize, vs: &Vec<Option<i32>>) -> Option<Rc<RefCell<TreeNode>>> {
+      <<task1123:TreeNode:from-vec-:Дії>>
+  }
+#+end_src
+
+Якщо індекс виходить за межі джерала (тобто, ~i >= vs.len()~), або значення вектора пусте, то результат
+пустий. В іншому випадку створюємо корень з поточного елемента і викликаємо рекурсивне створення дерева
+для індексів ~2*i+1~ для лівого вузла і ~2*i+2~ --- для правого.
+
+#+begin_src rust :noweb yes :noweb-ref task1123:TreeNode:from-vec-:Дії
+  vs.get(i).and_then(|v| v.map(|v| Rc::new(RefCell::new(TreeNode {
+      val: v,
+      left: Self::from_vec_(2*i+1, vs),
+      right: Self::from_vec_(2*i+2, vs)
+  }))))
+#+end_src
+
+** TODO Відображення
+
+Відображення реалізовано "брудно", оскільки для правильної реалізації треба вивчати більш детально
+специфікацію дерев.
+
+Для відлогодження дерево перетворюється на масив значень в порядку, що визначається рекурсивним
+=BFS=-обходом дерева.
+
+#+begin_src rust :noweb yes :noweb-ref task1123:TreeNode:Визначення
+  fn show(root: &Option<Rc<RefCell<Self>>>) -> Vec<Option<i32>> {
+      <<task1123:TreeNode:show:Дії>>
+  }
+#+end_src
+
+Якщо дерево пусте, повертається пустий вектор, в іншому випадку додаємо до результата значення кореневого
+вузла, потім додаємо до результата ліве і праве значення, а потім викликаємо обхід рекурсивно для лівої і
+правої частини.
+
+#+begin_src rust :noweb-ref task1123:TreeNode:show:Дії
+  match root {
+      None => vec![],
+      Some(root) => {
+          let root = root.borrow();
+          let mut result = vec![Some(root.val)];
+          Self::show_(root, &mut result);
+          result
+      }
+  }
+#+end_src
+
+Тут важливо, що значення виводяться спочатку, тому функцію доведеться розділити на оболонку (власне
+~show~) і внутрішнє рекурсивне ядро (~show_~).
+
+#+begin_src rust :noweb yes :noweb-ref task1123:Декларації
+  use std::cell::Ref;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task1123:TreeNode:Визначення
+  fn show_(root: Ref<'_, Self>, result: &mut Vec<Option<i32>>) {
+      <<task1123:TreeNode:show_:Дії>>
+  }
+#+end_src
+
+Якщо обидва вузли пусті, нічого не додаємо до результата.
+
+#+begin_src rust :noweb-ref task1123:TreeNode:show_:Дії
+  if root.left.is_none() && root.right.is_none() { return; }
+#+end_src
+
+У внутрішній функції ~show_~ спочатку виводимо значення лівого та правого вузлів, при цьому для пустого
+лівого вузла виводимо ~None~, а пустий правий просто ігноруємо.
+
+#+begin_src rust :noweb-ref task1123:TreeNode:show_:Дії
+  result.push(root.left.as_ref().map(|n| n.borrow().val));
+  if let Some(right) = &root.right { result.push(Some(right.borrow().val)); }
+#+end_src
+
+Після цього виводимо рекурсивно лівий та правий вузол. Знову, для пустого лівого вузла виводимо ~None~, а
+пустий правий вузол просто ігноруємо.
+
+#+begin_src rust :noweb-ref task1123:TreeNode:show_:Дії
+  match &root.left {
+      None => { result.push(None); }
+      Some(left) => { Self::show_(left.borrow(), result); }
+  }
+  if let Some(right) = &root.right { Self::show_(right.borrow(), result); }
+#+end_src
+
+** Тестування
+
+Оскільки відображення у вигляді вектора працює не завжди коректно, роздрукуємо дерево рекурсивно.
+
+#+begin_src rust :noweb yes :noweb-ref task1123:TreeNode:Визначення
+  fn _print(root: &Option<Rc<RefCell<TreeNode>>>) {
+      Self::print_(root, 0);
+  }
+
+  fn print_(root: &Option<Rc<RefCell<TreeNode>>>, indent: usize) {
+      match root {
+          None => println!("{}None", " ".repeat(indent)),
+          Some(root) => {
+              let root = root.borrow();
+              println!("{}Some({})", " ".repeat(indent), root.val);
+              Self::print_(&root.left, indent + 1);
+              Self::print_(&root.right, indent + 1);
+          }
+      }
+  }
+#+end_src
+
+* Пошук рішення
+
+Рішення шукаємо рекурсивно за допомогою функції ~find~. Цій функції надається поточна глибина вузла
+~depth~ (для кореневого вузла вона дорівнює ~0~) і сам вузол. В результаті повертається пара з
+максимальної глибини для даного вузла і найбільший спільний вузол для усіх вузлів максимальної глибини. В
+результаті нам буде потрібен лише другий компонент пари.
+
+#+begin_src rust :noweb yes :noweb-ref task1123:Дії
+  find(0, root).1.clone()
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task1123:Визначення
+  fn find(depth: usize, root: Option<Rc<RefCell<TreeNode>>>) -> (usize, Option<Rc<RefCell<TreeNode>>>) {
+      <<task1123:find:Дії>>
+  }
+#+end_src
+
+Для пустого вузла результатом є поточна глибина і сам цей вузол. В іншому випадку треба обробити дочірні
+вузли. Обирається вузол з більшою глибиною і повертається відповідна пара. Якщо обидва вузли мають
+однакову глибину, то повертається поточний вузол, а глибина визначається будь-яким з двох значень.
+
+#+begin_src rust :noweb yes :noweb-ref task1123:Декларації
+  use std::cmp::Ordering;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task1123:find:Дії
+  match root {
+      None => (depth, root),
+      Some(ref root_) => {
+          let root_ = root_.borrow();
+          let left = find(depth+1, root_.left.clone());
+          let right = find(depth+1, root_.right.clone());
+          match left.0.cmp(&right.0) {
+              Ordering::Greater => left,
+              Ordering::Less => right,
+              Ordering::Equal => (left.0, root.clone())
+          }
+      }
+  }
+#+end_src
+
