@@ -1,0 +1,110 @@
+#+title: =Leetcode=, задача =416=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task416.rs
+  <<task416:Декларації>>
+
+  <<task416:Визначення>>
+
+  fn can_partition(nums: Vec<i32>) -> bool {
+      <<task416:Дії>>
+  }
+
+  fn main() {
+      <<task416:Отримання-даних>>
+      println!("{}", can_partition(nums));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task416:Декларації
+  use std::{env, fs, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref task416:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let mut lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+  let nums = lines.next().unwrap()
+      .trim_start_matches('[')
+      .trim_end_matches(']')
+      .split(',')
+      .map(|item| item.parse().unwrap())
+      .collect();
+#+end_src
+
+* Випадок непарної суми
+
+Для непарної суми рішення нема, в іншому випадку встановлюємо мету ~t~ як половину цієї суми.
+
+#+begin_src rust :noweb-ref task416:Дії
+  let t = nums.iter().sum::<i32>() as usize;
+  if t % 2 == 1 { return false; }
+  let t = t / 2;
+#+end_src
+
+* Визначення ~dp~
+
+Задача є варіантом [[https://en.wikipedia.org/wiki/Knapsack_problem][задачі про рюкзак]] і вирішується методом одномірного динамічного програмування. Масив
+~dp[i]~ в такому випадку містить ознаки того, чи існує підмножина ~nums~, сума елементів якої дорівнює
+~i~. Спочатку усі значення ~dp~, крім ~dp[0]~, дорівнюють ~false~. ~dp[0]=true~, оскільки вважається, що
+існує пуста множина, сума елементів якої дорівнює ~0~. Розмір ~dp~ обмежимо метою ~t~.
+
+#+begin_src rust :noweb-ref task416:Дії
+  let mut dp = vec![false; t+1];
+  dp[0] = true;
+#+end_src
+
+* Заповнення ~dp~
+
+Для кожного значення ~nums~ перебираємо ~dp~ в зворотньому порядку (щоб попередити кратне врахування
+значень) оновлюємо ті елементи ~dp~, які встановлюються за рахунок поточного значення.
+
+#+begin_src rust :noweb-ref task416:Дії
+  for num in nums {
+      let num = num as usize;
+      for i in (num..=t).rev() {
+          dp[i] |= dp[i-num];
+      }
+  }
+#+end_src
+
+* Результат
+
+Результатом є останній елемент ~dp~.
+
+#+begin_src rust :noweb-ref task416:Дії
+  dp[t]
+#+end_src
+
+* COMMENT Прямий перебір
+
+Прямий перебір дозволяє частково вирішити проблему, але є приклади, на яких він не працює.
+
+#+begin_src rust :noweb-ref task416:Декларації
+  use std::cmp::Ordering;
+#+end_src
+
+#+begin_src rust :noweb-ref task416:Визначення
+  fn find(nums: &[i32], t: i32) -> bool {
+      if nums.is_empty() { return false; }
+      match nums[0].cmp(&t) {
+          Ordering::Equal => true,
+          Ordering::Greater => false,
+          Ordering::Less => {
+              (0..nums.len()).any(|i| find(&nums[i+1..], t - nums[0]))
+          }
+      }
+  }
+
+  fn can_partition_greedy(nums: Vec<i32>) -> bool {
+      let t = nums.iter().sum::<i32>();
+      if t % 2 == 1 { return false; }
+      let t = t / 2;
+      find(&nums, t)
+  }
+#+end_src
