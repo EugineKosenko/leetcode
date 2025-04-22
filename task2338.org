@@ -1,0 +1,116 @@
+#+title: =Leetcode=, задача =2338=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task2338.rs
+  <<task2338:Декларації>>
+
+  <<task2338:Визначення>>
+
+  fn ideal_arrays(n: i32, max_value: i32) -> i32 {
+      <<task2338:Дії>>
+  }
+
+  fn main() {
+      <<task2338:Отримання-даних>>
+      println!("{}", ideal_arrays(n, max_value));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task2338:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task2338:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let n = args[1].parse().unwrap();
+  let max_value = args[2].parse().unwrap();
+#+end_src
+
+Приведемо аргументи до зручних типів.
+
+#+begin_src rust :noweb-ref task2338:Дії
+  let n = n as u64;
+  let m = max_value as u64;
+#+end_src
+
+* Модуль обчислень
+
+Оскільки значення, що обчислюються, є дуже великими, ми обмежуємо їх по модулю.
+
+#+begin_src rust :noweb-ref task2338:Визначення
+  const MOD: u64 = 10_u64.pow(9) + 7;
+#+end_src
+
+* Отримання таблиці простих чисел
+
+Оформимо таблицю простих чисел від ~2~ до ~m~ у вигляді вектора ~primes~. Обчислимо його класичним
+решетом Ератосфена.
+
+#+begin_src rust :noweb-ref task2338:Дії
+  let l = (m as f64).sqrt() as u64;
+  let primes: Vec<_> = (2..=l)
+      .fold(vec![true; m as usize +1], |mut ps, p| {
+          for q in (p*p..=m).step_by(p as usize) { ps[q as usize] = false; }
+          ps
+      })
+      .into_iter().enumerate().skip(2).filter_map(|(i, p)| if p { Some(i as u64) } else { None })
+      .collect();
+#+end_src
+
+* Пряма факторизація
+
+Для кожного числа в діапазоні від ~2~ до ~m~ обчислимо кількість можливих послідовностей довжини
+~n~. Результатом є сума усіх цих кількостей плюс ще одна послідовність для ~1~.
+
+Хоча тести показують, нібито, нормальне обчислення суми, для надійності, обчислимо цю суму за модулем
+поелементно.
+
+#+begin_src rust :noweb yes :noweb-ref task2338:Дії
+  1 + (2..=m)
+   .map(|mut v| {
+       let mut result = 1;
+       <<task2338:Обробити-значення>>
+       result
+   })
+   .fold(0, |s, v| (s + v) % MOD) as i32
+#+end_src
+
+Для кожного значення ~v~ факторизуємо його, після чого обробимо кожний простий дільник.
+
+#+begin_src rust :noweb yes :noweb-ref task2338:Обробити-значення
+  let mut ps = primes.iter();
+  while v > 1 {
+      let p = ps.next().unwrap();
+      let mut e = 0;
+      while v % p == 0 { e += 1; v /= p; }
+      if e > 0 {
+          <<task2338:Обробити-дільник>>
+      }
+  }
+#+end_src
+
+Для кожного дільника порахуємо кількість комбінацій за формулою ~C[n-1+e, e]~. Для ефективності обчислимо
+одразу для результата, який є добутком цих значень для усіх дільників це значення в циклі множення на
+~(n-1+i)/i~ для кожного ~i~ від ~1~ до ~e~.
+
+Найбільш складним моментом є ділення на число по модулю. Для цього, відповідно до малої теореми Ферма, ми
+просто домножуємо подільне на дільник у ступіні ~MOD-2~ за модулем. Для обчислення такого великого
+ступіню реалізуємо власну функцію швидкого піднесення до ступеню ~pow~.
+
+#+begin_src rust :noweb yes :noweb-ref task2338:Обробити-дільник
+  result = (1..=e).fold(result, |result, i| (((result * (n-1+i)) % MOD) * pow(i, MOD-2)) % MOD);
+#+end_src
+
+#+begin_src rust :noweb-ref task2338:Визначення
+  fn pow(x: u64, n: u64) -> u64 {
+      if n == 0 { return 1; }
+      let y = pow(x, n/2);
+      let y = (y * y) % MOD;
+      if n % 2 == 0 { y } else { (y * x) % MOD }
+  }
+#+end_src
+
+* TODO Пошук за допомогою динамічного програмування
