@@ -5,7 +5,7 @@ fn count_interesting_subarrays(nums: Vec<i32>, modulo: i32, k: i32) -> i64 {
     let m = modulo;
 
     nums.into_iter()
-        .scan(0, |c, num| { *c += if num % m == k { 1 } else { 0 }; Some(*c)x })
+        .scan(0, |c, num| { *c += if num % m == k { 1 } else { 0 }; Some(*c) })
         .scan(HashMap::from([(0, 1)]), |map, c| {
             let result: i64 = *map.entry((c + m - k) % m).or_default();
             *map.entry(c % m).or_default() += 1;
