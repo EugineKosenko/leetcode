@@ -1,0 +1,149 @@
+#+title: =Leetcode=, задача =3337=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task3337.rs
+  <<task3337:Декларації>>
+
+  <<task3337:Визначення>>
+
+  fn length_after_transformations(s: String, t: i32, nums: Vec<i32>) -> i32 {
+      <<task3337:Дії>>
+  }
+
+  fn main() {
+      <<task3337:Отримання-даних>>
+      println!("{}", length_after_transformations(s, t, nums));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task3337:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task3337:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let s = args[1].to_string();
+  let t = args[2].parse().unwrap();
+  let nums = args[3]
+      .trim_start_matches('[')
+      .trim_end_matches(']')
+      .split(',')
+      .map(|item| item.parse().unwrap())
+      .collect();
+#+end_src
+
+* Модуль
+
+#+begin_src rust :noweb-ref task3337:Визначення
+  const MOD: u64 = 10u64.pow(9) + 7;
+#+end_src
+
+* Матриця
+
+Задачу можна вирішити за допомогою матричних обчислень, тому оформимо матрицю як абстрактну структуру.
+
+#+begin_src rust :noweb yes :noweb-ref task3337:Визначення
+  #[derive(Clone, Debug)]
+  struct Matrix(Vec<Vec<u64>>);
+
+  impl Matrix {
+      <<task3337:Matrix:Визначення>>
+  }
+#+end_src
+
+** Нова матриця
+
+Для простоти достатньо реалізувати лише матриці розміру ~nx26~, де ~n~ може бути ~1~ (вектор-рядок) або
+~26~ (квадратна матриця). Нова матриця завжди заповнена нулями.
+
+#+begin_src rust :noweb-ref task3337:Matrix:Визначення
+  fn new(n: usize) -> Self { Self(vec![vec![0; 26]; n]) }
+#+end_src
+
+З іншого боку, нам потрібно також створити матрицю як вектор-рядок розміру ~26~ з заданого вектору.
+
+#+begin_src rust :noweb-ref task3337:Matrix:Визначення
+  fn row(row: Vec<u64>) -> Self { Self(vec![row]) }
+#+end_src
+
+** Доступ до елементів
+
+#+begin_src rust :noweb-ref task3337:Декларації
+  use std::ops::{Deref, DerefMut};
+#+end_src
+
+#+begin_src rust :noweb-ref task3337:Визначення
+  impl Deref for Matrix {
+      type Target = Vec<Vec<u64>>;
+      fn deref(&self) -> &Self::Target { &self.0 }
+  }
+
+  impl DerefMut for Matrix {
+      fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+  }
+#+end_src
+
+** Добуток матриць
+
+При обчисленні добутку використовуємо модальну арифметику.
+
+Хоча дуже привабливо реалізувати добуток як стандартну операцію множення (~std::ops::Mul~), цей трейт має
+обмежену сігнатуру, яка вимагає зайвого клонування, що коштуватиме зайвого пространства та часу. Тому
+реалізуємо множення за допомогою звичайної функції.
+
+#+begin_src rust :noweb-ref task3337:Визначення
+  fn mul(lhs: &Matrix, rhs: &Matrix) -> Matrix {
+      let m = lhs.len();
+      let mut result = Matrix::new(m);
+      for i in 0..m { for j in 0..26 { for k in 0..26 {
+          result[i][j] = (result[i][j] + (lhs[i][k] * rhs[k][j]) % MOD) % MOD;
+      } } }
+      result
+  }
+#+end_src
+
+** Швидке піднесення до ступеню
+
+#+begin_src rust :noweb-ref task3337:Matrix:Визначення
+  fn pow(&self, n: i32) -> Self {
+      if n == 1 { return self.clone(); }
+      let y = self.pow(n/2);
+      let y = mul(&y, &y);
+      if n % 2 == 0 { y } else { mul(&y, self) }
+  }
+#+end_src
+
+* Підрахунок початкової кількості літер
+
+#+begin_src rust :noweb-ref task3337:Дії
+  let cs = Matrix::row(
+      s.chars().fold(vec![0; 26], |mut cs, c| { cs[(c as u8 - b'a') as usize] += 1; cs }));
+#+end_src
+
+* Визначення матриці перетворень
+
+Матриця перетворень визначається як ~nums[i]~ одиниць починаючи з позиції ~i+1~ для кожного рядка ~i~.
+
+#+begin_src rust :noweb-ref task3337:Дії
+  let tr = (0..26).fold(Matrix::new(26), |mut tr, i| {
+      for j in i+1..=i+(nums[i] as usize) { tr[i][j%26] = 1; }
+      tr });
+#+end_src
+
+* COMMENT Лінійне перетворення
+
+Виконуємо ~t~ кроків перетворення і повертаємо суму елементів вектора.
+
+#+begin_src rust :noweb-ref task3337:Дії
+  (0..t).fold(cs, |mut cs, _| { cs = cs * &tr; cs })[0].iter().fold(0, |a, b| (a+*b) % MOD) as i32
+#+end_src
+
+* Перетворення зі швидким піднесенням до ступіню
+
+#+begin_src rust :noweb-ref task3337:Дії
+  mul(&cs, &tr.pow(t))[0].iter().fold(0, |a, b| (a+*b) % MOD) as i32
+#+end_src
+
