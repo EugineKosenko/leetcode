@@ -2,6 +2,7 @@ use std::env;
 use std::ops::{Deref, DerefMut};
 
 const MOD: u64 = 10u64.pow(9) + 7;
+
 #[derive(Clone, Debug)]
 struct Matrix(Vec<Vec<u64>>);
 
