@@ -1,36 +1,40 @@
 use std::{env, fs, io::{self, BufRead}};
+use std::collections::BTreeMap;
 use std::collections::BinaryHeap;
-use std::cmp::Reverse;
+use std::cmp::Ordering;
 
 
 
 fn max_removal(mut nums: Vec<i32>, queries: Vec<Vec<i32>>) -> i32 {
     let n = nums.len();
-    let mut queries: BinaryHeap<_> = queries.into_iter()
-        .map(|q| Reverse((q[0] as usize, q[1] as usize))).collect();
+    let m = queries.len();
+    let mut qs: BTreeMap<_, BinaryHeap<_>> = queries.into_iter()
+        .fold(BTreeMap::new(), |mut qs, q| {
+            qs.entry(q[0] as usize).or_default().push(q[1] as usize); qs
+        });
     nums.push(0);
     for i in (1..=n).rev() { nums[i] -= nums[i-1]; }
-    let mut result = queries.len() as i32;
+    let mut result = m as i32;
     let mut i = 0;
     loop {
         while i < n && nums[i] <= 0 { i += 1; nums[i] += nums[i-1]; }
         if i == n { return result; }
-        let mut r = loop {
-            let Some(Reverse((l, r))) = queries.pop() else { return -1; };
-            if l > i { return -1; }
-            if r < i { continue; }
-            break r;
+        let mut rs = loop {
+            let Some((l, mut rs)) = qs.pop_first() else { return -1; };
+            match l.cmp(&i) {
+                Ordering::Greater => { return -1; },
+                Ordering::Equal => { break rs; },
+                Ordering::Less => { qs.entry(i).or_default().append(&mut rs); }
+            }
         };
-        
-        let mut rs = Vec::new();
-        while let Some(&Reverse((l, r_))) = queries.peek() {
-            if l > i { break; } else { queries.pop(); }
-            if r_ < i { continue; }
-            if r_ > r { rs.push(r); r = r_; } else { rs.push(r_); }
+        while nums[i] > 0 {
+            let Some(r) = rs.pop() else { return -1; };
+            if r < i { return -1; } else {
+                nums[i] -= 1; nums[r+1] += 1;
+                result -= 1;
+            }
         }
-        for r in rs { queries.push(Reverse((i, r))); }
-        nums[i] -= 1; nums[r+1] += 1;
-        result -= 1;
+        qs.insert(i, rs);
     }
 }
 
