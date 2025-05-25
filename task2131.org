@@ -1,0 +1,102 @@
+#+title: =Leetcode=, задача =2131=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task2131.rs
+  <<task2131:Декларації>>
+
+  <<task2131:Визначення>>
+
+  fn longest_palindrome(words: Vec<String>) -> i32 {
+      <<task2131:Дії>>
+  }
+
+  fn main() {
+      <<task2131:Отримання-даних>>
+      println!("{}", longest_palindrome(words));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task2131:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task2131:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let words = args[1]
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split(',')
+      .map(|s| s.trim_matches('"'))
+      .map(String::from)
+      .collect();
+#+end_src
+
+* Отримання статистики
+
+#+begin_src rust :noweb-ref task2131:Декларації
+  use std::collections::HashMap;
+#+end_src
+
+#+begin_src rust :noweb-ref task2131:Дії
+  let mut cs: HashMap<_, i32> = words.into_iter()
+      .fold(HashMap::new(), |mut cs, w| {
+          let bs = w.as_bytes();
+          ,*cs.entry((bs[0], bs[1])).or_default() += 1; cs
+      });
+#+end_src 
+
+* Обробка статистики
+
+Послідовно вилучаємо елементи статистики. Для кожного елемента визначаємо, чи є він симетричним, і в
+залежності від цього обробляємо елемент належним чином.
+
+Якщо в джерелі є хоча б одне симетричне слово, з непарною кількістю (див. [[id:4f1db431-83b2-4c37-84ca-551496260ae7][Обробка симетричного слова]]), ми
+можемо створити паліндром, у якого це слово знаходиться посередині. Відмітимо таку можливість у прапорці
+~has_center~, і якщо він встановлений, збільшимо результат на ~1~.
+
+В кінці подвоюємо результат, оскільки кожне слово дає дві літери в результаті.
+
+#+begin_src rust :noweb yes :noweb-ref task2131:Дії
+  let mut result = 0;
+  let mut has_center = false;
+  while let Some(w) = cs.keys().next().cloned() {
+      let ((b1, b2), c) = cs.remove_entry(&w).unwrap();
+      if b1 == b2 {
+          <<task2131:Обробити-симетричне-слово>>
+      } else {
+          <<task2131:Обробити-асиметричне-слово>>
+      }
+  }
+  if has_center { result += 1; }
+  2*result
+#+end_src 
+
+* Обробка симетричного слова
+:PROPERTIES:
+:ID:       4f1db431-83b2-4c37-84ca-551496260ae7
+:END:
+
+Симетричне слово дозволяє використання тільки половини його входжень, оскільки друга половина
+використовується для симетрії. Однак, в результат увійдуть обидві половини. Тут тонка різниця між
+випадками, коли кількість входжень є парною і непарною. Для парної кількості ми завжди використовуємо всі
+входження, а для непарної --- на одиницю менше. Однак, для непарної кількості ми встановлюємо прапорець
+~has_center~.
+
+#+begin_src rust :noweb yes :noweb-ref task2131:Обробити-симетричне-слово
+  result += c;
+  if c % 2 == 1 { result -= 1; has_center = true; } 
+#+end_src 
+
+* Обробка асиметричного слова
+
+Для асиметричного слова знаходимо в статистиці кількість його віддзеркалень (видаляючи елемень для
+віддзеркалення, оскільки його вже не треба обробляти) і додаємо меншу кількість входжень для слова або
+для його віддзеркалення. Зауважимо, що цю мінімальну кількість ми маємо врахувати двічі, для слова і для
+його віддзеркалення.
+
+#+begin_src rust :noweb yes :noweb-ref task2131:Обробити-асиметричне-слово
+  result += 2 * cs.remove(&(b2, b1)).unwrap_or_default().min(c);
+#+end_src 

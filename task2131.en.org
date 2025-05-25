@@ -1,0 +1,97 @@
+#+title: =Leetcode=, Problem =2131=
+
+* Main File
+
+#+begin_src rust :noweb yes :tangle src/bin/task2131.rs
+  <<task2131:Declarations>>
+
+  <<task2131:Definitions>>
+
+  fn longest_palindrome(words: Vec<String>) -> i32 {
+      <<task2131:Actions>>
+  }
+
+  fn main() {
+      <<task2131:Data-Input>>
+      println!("{}", longest_palindrome(words));
+  }
+#+end_src
+
+* Data Input
+
+#+begin_src rust :noweb-ref task2131:Declarations
+  use std::env;
+  use std::collections::HashMap;
+#+end_src
+
+#+begin_src rust :noweb-ref task2131:Data-Input
+  let args: Vec<String> = env::args().collect();
+  let words = args[1]
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split(',')
+      .map(|s| s.trim_matches('"'))
+      .map(String::from)
+      .collect();
+#+end_src
+
+* Statistics Collection
+
+#+begin_src rust :noweb-ref task2131:Actions
+  let mut result = 0;
+  let mut cs: HashMap<_, i32> = words.into_iter()
+      .fold(HashMap::new(), |mut cs, w| {
+          let bs = w.as_bytes();
+          *cs.entry((bs[0], bs[1])).or_default() += 1; cs
+      });
+#+end_src 
+
+* Statistics Processing
+
+We sequentially extract elements from the statistics. For each element, we determine if it is symmetric,
+and process it accordingly.
+
+If there is at least one symmetric word with an odd count (see [[id:4f1db431-83b2-4c37-84ca-551496260ae7][Processing Symmetric Word]]),
+we can create a palindrome with this word in the middle. We mark this possibility with the
+~has_center~ flag, and if it's set, we increase the result by ~1~.
+
+At the end, we double the result since each word contributes two letters to the final result.
+
+#+begin_src rust :noweb yes :noweb-ref task2131:Actions
+  let mut has_center = false;
+  while let Some(w) = cs.keys().next().cloned() {
+      let ((b1, b2), c) = cs.remove_entry(&w).unwrap();
+      if b1 == b2 {
+          <<task2131:Process-Symmetric-Word>>
+      } else {
+          <<task2131:Process-Asymmetric-Word>>
+      }
+  }
+  if has_center { result += 1; }
+  2*result
+#+end_src 
+
+* Processing Symmetric Word
+:PROPERTIES:
+:ID:       4f1db431-83b2-4c37-84ca-551496260ae7
+:END:
+
+A symmetric word allows using only half of its occurrences since the other half is used for symmetry.
+However, both halves will be counted in the result. There's a subtle difference between cases where
+the count is even or odd. For even counts, we always use all occurrences, while for odd counts,
+we use one less. However, for odd counts, we set the ~has_center~ flag.
+
+#+begin_src rust :noweb yes :noweb-ref task2131:Process-Symmetric-Word
+  result += c;
+  if c % 2 == 1 { result -= 1; has_center = true; }
+#+end_src 
+
+* Processing Asymmetric Word
+
+For an asymmetric word, we find its mirror count in the statistics (removing the mirror entry since
+it won't need to be processed anymore) and add twice the minimum count between the word and its mirror.
+Note that we count this minimum twice, once for the word and once for its mirror.
+
+#+begin_src rust :noweb yes :noweb-ref task2131:Process-Asymmetric-Word
+  result += 2 * cs.remove(&(b2, b1)).unwrap_or_default().min(c);
+#+end_src 
