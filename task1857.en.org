@@ -1,0 +1,174 @@
+#+title: =Leetcode=, problem =1857=
+
+* Main File
+
+#+begin_src rust :noweb yes :tangle src/bin/task1857.rs
+  <<task1857:Declarations>>
+
+  <<task1857:Definitions>>
+
+  fn largest_path_value(colors: String, edges: Vec<Vec<i32>>) -> i32 {
+      <<task1857:Actions>>
+  }
+
+  fn main() {
+      <<task1857:Data-Input>>
+      println!("{}", largest_path_value(colors, edges));
+  }
+#+end_src
+
+* Data Input
+
+#+begin_src rust :noweb-ref task1857:Declarations
+  use std::{env, fs, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref task1857:Data-Input
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let mut lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+  let colors = lines.next().unwrap().trim_matches('"').to_string();
+  let edges = lines.next().unwrap()
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split("], [")
+      .map(|s| s.trim_matches('[').trim_matches(']')
+          .split(", ")
+          .map(|n| n.trim().parse().unwrap())
+          .collect())
+      .collect();
+#+end_src
+
+* Special Case of Atomic Graph
+
+If the list of edges is empty, all nodes are isolated, and the longest path is known to be equal to one.
+
+#+begin_src rust :noweb-ref task1857:Actions
+  if edges.is_empty() { return 1; }
+#+end_src
+
+* Graph Nodes
+
+A graph Node stores the node's color (color), list of its neighbors (nodes), and the number of edges leading to this node, i.e., the indegree.
+
+For simplicity, we encode neighbor nodes by their numbers, which are determined by indices in the source color string.
+
+We convert the color to an index type (usize) to simplify subsequent indexing of the dynamic programming matrix.
+
+#+begin_src rust :noweb-ref task1857:Definitions
+  struct Node { color: usize, nodes: Vec<usize> }
+#+end_src
+
+The indegree is used to find the "entry" nodes for search. However, including it in the structure causes problems with mutable access to the node. Therefore, we will store indegrees separately.
+
+We obtain the list of graph nodes (initially with empty neighbor lists and zero indegree) by iterating through the color string.
+
+#+begin_src rust :noweb-ref task1857:Actions
+  let nodes: Vec<_> = colors.chars()
+      .map(|c| Node { color: (c as u8 - b'a') as usize, nodes: Vec::new() })
+      .collect();
+  let mut indegrees = vec![0; nodes.len()];
+#+end_src
+
+Importantly, the graph is a multigraph, as the condition allows multiple edges. Since multiple edges don't affect the result, we first "compress" the edge list into an unordered set (HashSet) that will contain only unique edges.
+
+#+begin_src rust :noweb-ref task1857:Declarations
+  use std::collections::HashSet;
+#+end_src
+
+#+begin_src rust :noweb-ref task1857:Actions
+  let edges: HashSet<_> = edges.into_iter().collect();
+#+end_src
+
+We iterate through the edge list and for each edge register node neighbors and count the indegree.
+
+#+begin_src rust :noweb-ref task1857:Actions
+  let nodes = edges.into_iter()
+      .fold(nodes, |mut nodes, edge| {
+          let from = edge[0] as usize;
+          let to = edge[1] as usize;
+          nodes[from].nodes.push(to);
+          indegrees[to] += 1;
+          nodes
+      });
+#+end_src
+
+* Dynamic Programming Matrix
+
+The value dp[n][c] contains the largest number of nodes with color c for all paths ending at node n. Initially, this matrix contains zeros in all positions except those where the color matches the node's color, which contain 1.
+
+#+begin_src rust :noweb-ref task1857:Actions
+  let mut dp: Vec<Vec<_>> = nodes.iter()
+      .map(|node| (0..26).map(|j| if node.color == j { 1 } else { 0 }).collect())
+      .collect();
+#+end_src
+
+* Finding the Solution
+
+We create a node queue for processing. Initially, this queue includes only nodes with zero indegree, and during the process, the queue will be populated with new nodes. The cycle ends when the queue becomes empty.
+
+Note that if there are cycles in the initial graph, then no solution exists, and the result should be -1. This is possible in two cases:
+
+- there are no nodes with zero indegree in the graph from the start;
+- after queue processing is complete, there are still unvisited nodes.
+
+For the first condition, we'll start accumulating the result from -1.
+
+#+begin_src rust :noweb-ref task1857:Actions
+  let mut result = -1;
+#+end_src 
+
+For the second condition, we'll count the number of visited nodes, and if at the end this number is less than the total number of nodes (not all nodes were visited), we'll immediately return -1.
+
+#+begin_src rust :noweb-ref task1857:Actions
+  let mut visited_count = 0;
+#+end_src 
+
+Let's build the initial queue value.
+
+#+begin_src rust :noweb-ref task1857:Actions
+  let mut queue: Vec<_> = (0..nodes.len())
+      .filter_map(|i| if indegrees[i] == 0 { Some(i) } else { None })
+      .collect();
+#+end_src 
+
+Execute the solution search.
+
+#+begin_src rust :noweb yes :noweb-ref task1857:Actions
+  while let Some(i) = queue.pop() {
+      <<task1857:Process-Node>>
+  }
+  if visited_count < nodes.len() { return -1; }
+  result
+#+end_src 
+
+* Processing a Node
+
+Add the node to visited and process all its neighbors.
+
+#+begin_src rust :noweb yes :noweb-ref task1857:Process-Node
+  visited_count += 1;
+  for &j in &nodes[i].nodes {
+      <<task1857:Process-Neighbor>>
+  }
+#+end_src 
+
+For each neighbor j and each color c, update dp[j][c] and the overall result. If c matches the color of node j, then the result is max(dp[i][c]+1, dp[j][c]), otherwise max(dp[i][c], dp[j][c]).
+
+For efficiency, we immediately update the result if the new dp value is greater than the current result.
+
+#+begin_src rust :noweb yes :noweb-ref task1857:Process-Neighbor
+  for c in 0..26 {
+      dp[j][c] = dp[j][c].max(dp[i][c] + if nodes[j].color == c { 1 } else { 0 });
+      result = result.max(dp[j][c]);
+  }
+#+end_src 
+
+Thus, we have processed another edge leading to node j, which allows us to decrease its indegree. If the indegree becomes 0, this node becomes initial, so we add it to the queue.
+
+#+begin_src rust :noweb yes :noweb-ref task1857:Process-Neighbor
+  indegrees[j] -= 1;
+  if indegrees[j] == 0 { queue.push(j); }
+#+end_src 

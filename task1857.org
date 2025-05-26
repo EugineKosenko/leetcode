@@ -1,0 +1,190 @@
+#+title: =Leetcode=, задача =1857=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task1857.rs
+  <<task1857:Декларації>>
+
+  <<task1857:Визначення>>
+
+  fn largest_path_value(colors: String, edges: Vec<Vec<i32>>) -> i32 {
+      <<task1857:Дії>>
+  }
+
+  fn main() {
+      <<task1857:Отримання-даних>>
+      println!("{}", largest_path_value(colors, edges));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task1857:Декларації
+  use std::{env, fs, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref task1857:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let mut lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+  let colors = lines.next().unwrap().trim_matches('"').to_string();
+  let edges = lines.next().unwrap()
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split("], [")
+      .map(|s| s.trim_matches('[').trim_matches(']')
+          .split(", ")
+          .map(|n| n.trim().parse().unwrap())
+          .collect())
+      .collect();
+#+end_src
+
+* Особливий випадок атомарного графа
+
+Якщо перелік дуг ~edges~ в джерелі є пустим, усі вузли самі по собі, і найдовший шлях завідомо дорівнює
+одиниці.
+
+#+begin_src rust :noweb-ref task1857:Дії
+  if edges.is_empty() { return 1; }
+#+end_src
+
+* Вузли графа
+
+/Вузол/ графа ~Node~ зберігає колір вузла (~color~), перелік його сусідів (~nodes~) та кількість дуг, що
+ведуть до цього вузла, тобто /ступінь входу/ (~indegree~).
+
+Для простоти кодуємо вузли сусідів їх номерами, які визначаються індексами в рядку джерела кольорів
+~colors~.
+
+Приводимо колір до індексного типу (~usize~), що спростить подальше індексування матриці динамічного
+програмування.
+
+#+begin_src rust :noweb-ref task1857:Визначення
+  struct Node { color: usize, nodes: Vec<usize> }
+#+end_src
+
+Ступінь входу використовується для пошуку "вхідних" вузлів пошуку. Однак, його включення до структури
+викликає проблеми доступу до вузла з можливістю зміни. Тому будемо зберігати ступені входу окремо.
+
+Перелік вузлів графа (спочатку з пустим переліком сусідів та нульовим вхідним ступенем) отримуємо
+перебором рядка кольорів.
+
+#+begin_src rust :noweb-ref task1857:Дії
+  let nodes: Vec<_> = colors.chars()
+      .map(|c| Node { color: (c as u8 - b'a') as usize, nodes: Vec::new() })
+      .collect();
+  let mut indegrees = vec![0; nodes.len()];
+#+end_src
+
+Важливо, що граф є *мультіграфом*, оскільки умова допускає наявність кратних дуг. Оскільки кратні дуги не
+впливають на результат, спочатку "стиснемо" перелік дуг у невпорядковану множину (~HashSet~), яка буде
+містити тільки унікальні дуги.
+
+#+begin_src rust :noweb-ref task1857:Декларації
+  use std::collections::HashSet;
+#+end_src
+
+#+begin_src rust :noweb-ref task1857:Дії
+  let edges: HashSet<_> = edges.into_iter().collect();
+#+end_src
+
+Перебираємо перелік дуг і для кожної дуги реєструємо сусідів вузлів та підраховуємо вхідний ступінь.
+
+#+begin_src rust :noweb-ref task1857:Дії
+  let nodes = edges.into_iter()
+      .fold(nodes, |mut nodes, edge| {
+          let from = edge[0] as usize;
+          let to = edge[1] as usize;
+          nodes[from].nodes.push(to);
+          indegrees[to] += 1;
+          nodes
+      });
+#+end_src
+
+* Матриця динамічного програмування
+
+Значення ~dp[n][c]~ містить найбільшу кількість вузлів з кольором ~c~, для усіх шляхів, що закінчуються у
+вузлі ~n~. Спочатку ця матриця містить нулі у всіх позиціях, крім тих, де колір співпадає з коліром
+вузла, в яких кількість дорівнює ~1~.
+
+#+begin_src rust :noweb-ref task1857:Дії
+  let mut dp: Vec<Vec<_>> = nodes.iter()
+      .map(|node| (0..26).map(|j| if node.color == j { 1 } else { 0 }).collect())
+      .collect();
+#+end_src
+
+* Пошук рішення
+
+Утворимо /чергу вузлів/ ~queue~ для обробки. Спочатку в цю чергу включаються тільки вузли з нульовим
+ступенем входу, в процесі черга буде поповнюватися новими вузлами. Цикл закінчується, коли черга стає
+пустою.
+
+Зазначимо, що якщо в початковому графі є цикли, то рішення не існує, і результат має бути ~-1~. Це
+можливо в двох випадках:
+
+- в графі з самого початку нема вузлів з нульовим ступенем входу;
+- після завершення обробки черги залишаються ще узли, які не були відвідані.
+
+Для першої умови почнемо накопичувати результат зі значення ~-1~.
+
+#+begin_src rust :noweb-ref task1857:Дії
+  let mut result = -1;
+#+end_src 
+
+Для другої умови будемо підраховувати кількість відвіданих вузлів, і якщо в кінці ця кількість буде менше
+загальної кількості вузлів (не всі вузли були відвідані, одразу повернемо ~-1~.
+
+#+begin_src rust :noweb-ref task1857:Дії
+  let mut visited_count = 0;
+#+end_src 
+
+Побудуємо початкове значення черги.
+
+#+begin_src rust :noweb-ref task1857:Дії
+  let mut queue: Vec<_> = (0..nodes.len())
+      .filter_map(|i| if indegrees[i] == 0 { Some(i) } else { None })
+      .collect();
+#+end_src 
+
+Виконаємо пошук рішення.
+
+#+begin_src rust :noweb yes :noweb-ref task1857:Дії
+  while let Some(i) = queue.pop() {
+      <<task1857:Обробити-вузол>>
+  }
+  if visited_count < nodes.len() { return -1; }
+  result
+#+end_src 
+
+* Обробка вузла
+
+Додамо вузол до відвіданих та обробимо усіх його сусідів.
+
+#+begin_src rust :noweb yes :noweb-ref task1857:Обробити-вузол
+  visited_count += 1;
+  for &j in &nodes[i].nodes {
+      <<task1857:Обробити-сусіда>>
+  }
+#+end_src 
+
+Для кожного сусіда ~j~ і кожного кольору ~c~ оновимо ~dp[j][c]~ і загальний результат. Якщо ~c~ співпадає
+з кольором вузла ~j~, то результат є ~max(dp[i][c]+1, dp[j][c])~, інакше ~max(dp[i][c], dp[j][c])~.
+
+Для ефективності одразу оновлюємо результат, якщо нове значення ~dp~ більше поточного результата.
+
+#+begin_src rust :noweb yes :noweb-ref task1857:Обробити-сусіда
+  for c in 0..26 {
+      dp[j][c] = dp[j][c].max(dp[i][c] + if nodes[j].color == c { 1 } else { 0 });
+      result = result.max(dp[j][c]);
+  }
+#+end_src 
+
+Таким чином ми обробили чергову дугу, що веде у вузол ~j~, що дозволяє нам зменшити його ступінь
+входу. Якщо ступінь входу стає равним ~0~, цей вузол стає початковим, тому додамо його до черги.
+
+#+begin_src rust :noweb yes :noweb-ref task1857:Обробити-сусіда
+  indegrees[j] -= 1;
+  if indegrees[j] == 0 { queue.push(j); }
+#+end_src 
