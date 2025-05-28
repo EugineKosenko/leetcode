@@ -1,0 +1,191 @@
+#+title: =Leetcode=, task =3372=
+
+* Main File
+
+#+begin_src rust :noweb yes :tangle src/bin/task3372.rs
+  <<task3372:Declarations>>
+
+  <<task3372:Definitions>>
+
+  pub fn max_target_nodes(edges1: Vec<Vec<i32>>, edges2: Vec<Vec<i32>>, k: i32) -> Vec<i32> {
+      <<task3372:Actions>>
+  }
+
+  fn main() {
+      <<task3372:Data-Input>>
+      println!("{:?}", max_target_nodes(edges1, edges2, k));
+  }
+#+end_src
+
+* Data Input
+
+#+begin_src rust :noweb-ref task3372:Declarations
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task3372:Data-Input
+  let args: Vec<String> = env::args().collect();
+  let edges1: Vec<Vec<i32>> = args[1]
+      .trim_matches(|c| c == '[' || c == ']')
+      .split("],[")
+      .map(|s| s.trim_matches(|c| c == '[' || c == ']')
+          .split(',')
+          .filter_map(|n| n.parse().ok())
+          .collect())
+      .collect();
+  let edges2: Vec<Vec<i32>> = args[2]
+      .trim_matches(|c| c == '[' || c == ']')
+      .split("],[")
+      .map(|s| s.trim_matches(|c| c == '[' || c == ']')
+          .split(',')
+          .filter_map(|n| n.parse().ok())
+          .collect())
+      .collect();
+  let k: i32 = args[3].parse().unwrap();
+#+end_src
+
+* Graph Construction
+
+The algorithm's peculiarity is that we need to collect the answer in a specific order at the
+end. Therefore, we'll represent the graph as a vector rather than a map. First, we need to determine the
+total number of nodes ~n~.
+
+#+begin_src rust :noweb-ref task3372:Definitions
+  fn graph(edges: Vec<Vec<i32>>) -> Vec<Vec<usize>> {
+      let n = edges.iter().map(|edge| edge[0].max(edge[1])).max().unwrap() as usize + 1;
+      edges.into_iter()
+          .fold(vec![Vec::new(); n], |mut graph, edge| {
+              let (from, to) = (edge[0] as usize, edge[1] as usize);
+              graph[from].push(to);
+              graph[to].push(from);
+              graph
+          })
+  }
+#+end_src
+
+* Finding Degree
+
+We'll define the /=k=-degree/ (or simply degree) of a node as the size of its ~k~-neighborhood, i.e., the number
+of nodes reachable from it in ~k~ steps. The ~degree~ function finds the degree of node ~root~ for a given
+graph ~graph~.
+
+Note that the initial node is also included in the neighborhood, so the degree of a node is at least one.
+
+We'll also handle the special case ~k=0~
+
+#+begin_src rust :noweb yes :noweb-ref task3372:Definitions
+  fn degree(graph: &Vec<Vec<usize>>, root: usize, k: i32) -> i32 {
+      let mut result = 1;
+      <<task3372:degree:Actions>>
+      result as i32
+  }
+#+end_src
+
+Create a set of visited nodes to avoid revisiting them. Initially, this list contains only the starting node.
+
+#+begin_src rust :noweb-ref task3372:Declarations
+  use std::collections::HashSet;
+#+end_src
+
+#+begin_src rust :noweb-ref task3372:degree:Actions
+  let mut visited = HashSet::from([root]);
+#+end_src
+
+Create a processing queue that includes not only the node but also its distance from the starting node.
+Initially, the queue contains the starting node with zero distance.
+
+#+begin_src rust :noweb-ref task3372:degree:Actions
+  let mut queue = vec![(root, 0)];
+#+end_src
+
+Process the queue until it's empty, handling the current node.
+
+#+begin_src rust :noweb yes :noweb-ref task3372:degree:Actions
+  while let Some((node, d)) = queue.pop() {
+      <<task3372:degree:Process-Node>>
+  }
+#+end_src
+
+For efficiency, we assume ~k>1~ (case ~k=0~ is handled [[id:001fcff5-f699-4f72-a543-7132b4056250][separately]]), and we keep only nodes with
+distance ~d<k~ in the queue. Thus, for a selected node, we can always make one more step.
+
+For time efficiency (at the cost of memory), we'll collect all unvisited neighbors of the node separately.
+
+#+begin_src rust :noweb-ref task3372:degree:Process-Node
+  let nodes: Vec<_> = graph[node].iter().filter(|node| !visited.contains(node)).collect();
+#+end_src
+
+Increase the result by the number of unvisited neighbors.
+
+#+begin_src rust :noweb-ref task3372:degree:Process-Node
+  result += nodes.len();
+#+end_src
+
+If the current node's distance is less than ~k-1~, add all its unvisited neighbors to the queue with
+increased distance and mark them as visited. Otherwise, don't add nodes to the queue but mark them as
+visited. This branching optimizes computations in the loop.
+
+#+begin_src rust :noweb-ref task3372:degree:Process-Node
+  if d < k-1 {
+      for &node in nodes.into_iter() { queue.push((node, d+1)); visited.insert(node); }
+  } else {
+      for &node in nodes.into_iter() { visited.insert(node); }
+  }
+#+end_src
+
+* Special Case ~k=0~
+:PROPERTIES:
+:ID:       001fcff5-f699-4f72-a543-7132b4056250
+:END:
+
+For efficiency, the solution requires ~k>1~, but we need to handle the case ~k=0~ specially. In this case,
+the graph structure doesn't matter since each node's degree equals ~1~. The only complexity here is that we
+still need to get the number of nodes in the first graph, which requires analyzing ~edges1~. We'll simply
+get the maximum node number in ~edges1~.
+
+#+begin_src rust :noweb-ref task3372:Actions
+  if k == 0 {
+      let n = edges1.into_iter().map(|edge| edge[0].max(edge[1])).max().unwrap() as usize + 1;
+      return vec![1; n];
+  }
+#+end_src 
+
+* Finding Maximum Degree in Second Graph
+:PROPERTIES:
+:ID:       5fe68856-dcf8-43ff-b242-7284c4499286
+:END:
+
+When finding the maximum degree in the second graph, the neighborhood size is ~k-1~, and we need to
+handle the case ~k=1~ separately, which is similar to the [[id:001fcff5-f699-4f72-a543-7132b4056250][special case ~k=0~]] we considered earlier. In
+this case, the maximum degree of the second graph always equals ~1~.
+
+#+begin_src rust :noweb-ref task3372:Actions
+  let d = if k == 1 { 1 } else {
+      let g = graph(edges2);
+      (0..g.len()).map(|n| degree(&g, n, k-1)).max().unwrap()
+  };
+#+end_src 
+
+* Finding Solution
+
+To get the solution, it's sufficient to add the maximum degree ~d~ of the =k-1=-neighborhood in the
+second graph (which we found [[id:5fe68856-dcf8-43ff-b242-7284c4499286][earlier]]) to the =k=-degree of each node in the first graph, since one edge
+will be added during graph connection.
+
+#+begin_src rust :noweb-ref task3372:Actions
+  let g = graph(edges1);
+  (0..g.len()).map(|n| degree(&g, n, k) + d).collect()
+#+end_src 
+
+* Complexity Analysis
+
+Time Complexity: O(n * (n + m))
+- where n is the number of nodes (maximum node number + 1)
+- m is the number of edges (≤ 10⁵)
+- In worst case: n can be of order m (i.e., O(10⁵))
+- Then time complexity becomes: O((10⁵)²) = O(10¹⁰)
+
+Space Complexity: O(n + m)
+- where n is the number of nodes
+- m is the number of edges (≤ 10⁵)
+- In worst case: O(10⁵) 
