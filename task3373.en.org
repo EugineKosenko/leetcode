@@ -1,0 +1,154 @@
+#+title: =Leetcode=, problem =3373=
+
+This problem is a development of problem [[file:task3372.org][3372]], which we will refer to as the /previous one/.
+
+* Main File
+
+#+begin_src rust :noweb yes :tangle src/bin/task3373.rs
+  <<task3373:Declarations>>
+
+  <<task3373:Definitions>>
+
+  pub fn max_target_nodes(edges1: Vec<Vec<i32>>, edges2: Vec<Vec<i32>>) -> Vec<i32> {
+      <<task3373:Actions>>
+  }
+
+  fn main() {
+      <<task3373:Data-Input>>
+      println!("{:?}", max_target_nodes(edges1, edges2));
+  }
+#+end_src
+
+* Data Input
+
+#+begin_src rust :noweb-ref task3373:Declarations
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task3373:Data-Input
+  let args: Vec<String> = env::args().collect();
+  let edges1 = args[1]
+      .trim_matches(|c| c == '[' || c == ']')
+      .split("],[")
+      .map(|s| s.trim_matches(|c| c == '[' || c == ']')
+          .split(',')
+          .filter_map(|n| n.parse().ok())
+          .collect())
+      .collect();
+  let edges2 = args[2]
+      .trim_matches(|c| c == '[' || c == ']')
+      .split("],[")
+      .map(|s| s.trim_matches(|c| c == '[' || c == ']')
+          .split(',')
+          .filter_map(|n| n.parse().ok())
+          .collect())
+      .collect();
+#+end_src
+
+* Graph Construction
+
+The peculiarity of the algorithm is that we need to collect the answer in a specific order at the end. Therefore,
+we will represent the graph as a vector, not a map. In this case, we first need to determine the total number of
+nodes ~n~.
+
+#+begin_src rust :noweb-ref task3373:Definitions
+  fn graph(edges: Vec<Vec<i32>>) -> Vec<Vec<usize>> {
+      let n = edges.iter().map(|edge| edge[0].max(edge[1])).max().unwrap() as usize + 1;
+      edges.into_iter()
+          .fold(vec![Vec::new(); n], |mut graph, edge| {
+              let (from, to) = (edge[0] as usize, edge[1] as usize);
+              graph[from].push(to);
+              graph[to].push(from);
+              graph
+          })
+  }
+#+end_src
+
+* Finding Degree
+
+Unlike the previous problem, here we need to calculate /color degrees/, which determine the maximum
+number of nodes of the same color, given that the colors of two adjacent nodes cannot be the same. In
+this case, there are only two /colors/ (=color=) --- /even/ (=even=) and odd (=odd=), which can
+also be encoded with boolean values. However, it's more convenient to use three values, ~1~ and ~0~ for
+odd and even colors respectively, and use a special value ~-1~ to mark nodes that haven't been colored yet.
+
+The ~degree~ function finds the degrees of nodes for a given ~graph~. Importantly, the degree of each node
+of the same color is the same for all nodes of that color. Since we only have two colors,
+it's sufficient to return an array of two elements ~degree~, where ~degree[0]~ is the degree for even vertices, and
+~degree[1]~ is for odd ones. Additionally, we'll also need to return a vector of colors for each
+node, which is used to calculate the degrees of individual elements of the first graph.
+
+#+begin_src rust :noweb yes :noweb-ref task3373:Definitions
+  fn degree(graph: &Vec<Vec<usize>>) -> ([i32; 2], Vec<isize>) {
+      <<task3373:degree:Actions>>
+      (degree, colors)
+  }
+#+end_src
+
+According to the problem conditions, we have at least two nodes, so for each degree, the initial value is
+~1~. However, for simplicity, we'll start with zero values, and the standard algorithm will perform the necessary counting.
+
+#+begin_src rust :noweb-ref task3373:degree:Actions
+  let mut degree = [0, 0];
+#+end_src
+
+Let's define a vector of colors for each node. Initially, all nodes except the first one are not colored.
+For definiteness, we'll start the search from node ~0~, which we'll consider even.
+
+#+begin_src rust :noweb-ref task3373:degree:Actions
+  let mut colors = vec![-1; graph.len()];
+  colors[0] = 0;
+#+end_src
+
+Let's create a ~queue~ for coloring the graph, which initially contains node ~0~.
+
+#+begin_src rust :noweb-ref task3373:degree:Actions
+  let mut queue = vec![0];
+#+end_src
+
+We iterate through the queue until it's empty and process each node.
+
+#+begin_src rust :noweb yes :noweb-ref task3373:degree:Actions
+  while let Some(node) = queue.pop() {
+      <<task3373:degree:Process-Node>>
+  }
+#+end_src
+
+Note that all nodes in the queue are always colored. So we'll simply increase the degree for the current
+color.
+
+#+begin_src rust :noweb-ref task3373:degree:Process-Node
+  degree[colors[node] as usize] += 1;
+#+end_src
+
+We'll color all uncolored neighbors of the node in the opposite color and add them to the queue.
+
+#+begin_src rust :noweb-ref task3373:degree:Process-Node
+  for &next in &graph[node] { if colors[next] == -1 {
+      colors[next] = 1 - colors[node];
+      queue.push(next)
+  }}
+#+end_src
+
+* Finding Maximum Degree of the Second Graph
+
+Let's find the degrees for both colors in the second graph. Note that the color vector for it can be
+ignored since we're only interested in the highest degree. The result is the maximum of the two values
+~d~.
+
+#+begin_src rust :noweb-ref task3373:Actions
+  let (d, _) = degree(&graph(edges2));
+  let d2 = d[0].max(d[1]);
+#+end_src
+
+* Finding the Solution
+
+To get the solution, it's sufficient to add the maximum degree ~d~ of the second graph (which we found
+earlier) to the degree of each node in the first graph, since one edge will be added during the graph
+connection.
+
+#+begin_src rust :noweb-ref task3373:Actions
+  let g = graph(edges1);
+  let (d, cs) = degree(&g);
+  (0..g.len()).map(|n| d[cs[n] as usize] + d2).collect()
+#+end_src 
