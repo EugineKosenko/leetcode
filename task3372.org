@@ -82,15 +82,16 @@
   }
 #+end_src
 
-Утворимо множину відвіданих вузлів, щоб не відвідувати їх повторно. Спочатку цей перелік містить
-початковий вузол.
-
-#+begin_src rust :noweb-ref task3372:Декларації
-  use std::collections::HashSet;
-#+end_src
+Для ефективності зберігатимо у векторі ~is_visited~ ознаки вузлів, які були відвідані.
 
 #+begin_src rust :noweb-ref task3372:degree:Дії
-  let mut visited = HashSet::from([root]);
+  let mut is_visited = vec![false; graph.len()];
+#+end_src
+
+Помітимо початковий вузол, як відвіданий.
+
+#+begin_src rust :noweb-ref task3372:degree:Дії
+  is_visited[root] = true;
 #+end_src
 
 Створимо чергу обробки вузлів, яка включає не тільки вузол, але і його відстань від початкового
@@ -114,7 +115,7 @@
 Для ефективності у часі (за рахунок пам'яті) зберемо окремо усіх сусідів вузла, які ще не відвідані.
 
 #+begin_src rust :noweb-ref task3372:degree:Обробити-вузол
-  let nodes: Vec<_> = graph[node].iter().filter(|node| !visited.contains(node)).collect();
+  let nodes: Vec<_> = graph[node].iter().filter(|&&node| !is_visited[node]).collect();
 #+end_src
 
 Збільшуємо результат на кількість сусідів, які ще не відвідано.
@@ -129,9 +130,9 @@
 
 #+begin_src rust :noweb-ref task3372:degree:Обробити-вузол
   if d < k-1 {
-      for &node in nodes.into_iter() { queue.push((node, d+1)); visited.insert(node); }
+      for &node in nodes.into_iter() { queue.push((node, d+1)); is_visited[node] = true; }
   } else {
-      for &node in nodes.into_iter() { visited.insert(node); }
+      for &node in nodes.into_iter() { is_visited[node] = true; }
   }
 #+end_src
 

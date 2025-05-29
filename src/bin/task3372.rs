@@ -1,5 +1,4 @@
 use std::env;
-use std::collections::HashSet;
 
 fn graph(edges: Vec<Vec<i32>>) -> Vec<Vec<usize>> {
     let n = edges.iter().map(|edge| edge[0].max(edge[1])).max().unwrap() as usize + 1;
@@ -13,15 +12,16 @@ fn graph(edges: Vec<Vec<i32>>) -> Vec<Vec<usize>> {
 }
 fn degree(graph: &Vec<Vec<usize>>, root: usize, k: i32) -> i32 {
     let mut result = 1;
-    let mut visited = HashSet::from([root]);
+    let mut is_visited = vec![false; graph.len()];
+    is_visited[root] = true;
     let mut queue = vec![(root, 0)];
     while let Some((node, d)) = queue.pop() {
-        let nodes: Vec<_> = graph[node].iter().filter(|node| !visited.contains(node)).collect();
+        let nodes: Vec<_> = graph[node].iter().filter(|&&node| !is_visited[node]).collect();
         result += nodes.len();
         if d < k-1 {
-            for &node in nodes.into_iter() { queue.push((node, d+1)); visited.insert(node); }
+            for &node in nodes.into_iter() { queue.push((node, d+1)); is_visited[node] = true; }
         } else {
-            for &node in nodes.into_iter() { visited.insert(node); }
+            for &node in nodes.into_iter() { is_visited[node] = true; }
         }
     }
     result as i32
