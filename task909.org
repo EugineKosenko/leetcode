@@ -1,0 +1,127 @@
+#+title: =Leetcode=, задача =909=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task909.rs
+  <<task909:Декларації>>
+
+  <<task909:Визначення>>
+
+  pub fn snakes_and_ladders(board: Vec<Vec<i32>>) -> i32 {
+      <<task909:Дії>>
+  }
+
+  fn main() {
+      <<task909:Отримання-даних>>
+      println!("{}", snakes_and_ladders(board));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task909:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task909:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let board = args[1]
+      .trim_matches(|c| c == '[' || c == ']')
+      .split("],[")
+      .map(|s| s.trim_matches(|c| c == '[' || c == ']')
+          .split(',')
+          .map(|n| n.parse().unwrap())
+          .collect())
+      .collect();
+#+end_src
+
+* Побудова вектора переходів
+
+Джерело у вигляді двомірної дошки не є зручним представленням для пошуку рішення. Тому перетворимо її на
+лінійний вектор /стрибків/ (~jump~) розміру ~n^2~, в якому кожне значення ~jump[i]~ показує перехід з
+клінинки ~i~ до клітинки ~jump[i]~. Якщо стрибка не відбувається, відповідний елемент містить спеціальне
+від'ємне значення.
+
+При цьому ми додатково зменшуємо значення індексів, щоб вони були в проміжку ~0..n-1~. Для простоти не
+обробляємо спеціальний випадок ~-1~, який перетворюється на ~-2~, просто врахуємо, цю зміну спеціального
+значення.
+
+При побудові основною складністю є рух "зворотнім бустрофедоном", при якому індекси рядків перебираються
+в зворотньому порядку, а напрямок перебору індексів стовпців змінюється почергово на прямий і зворотній
+відповідно для парних (починаючи з ~0~) та непарних рядків.
+
+#+begin_src rust :noweb-ref task909:Дії
+  let jumps = board.into_iter().rev().enumerate()
+      .fold(Vec::new(), |jumps, (i, row)| {
+          if i % 2 == 0 {
+              row.into_iter().fold(jumps, |mut jumps, target| { jumps.push(target-1); jumps })
+          } else {
+              row.into_iter().rev().fold(jumps, |mut jumps, target| { jumps.push(target-1); jumps })
+          }
+      });
+#+end_src 
+
+* Пошук рішення
+
+Будемо зберігати /відстані/ (/dist/-ance-/s/) клітин від початкової, з урахуванням можливих стрибків, у
+векторі ~dists~. Спочатку для усіх клітин ~dists~ містить спеціальне від'ємне значення ~-1~. Очевидно, що
+~dists[0]=0~, але це значення буде автоматично заповнено в процесі обробки.
+
+#+begin_src rust :noweb-ref task909:Дії
+  let mut dists = vec![-1; jumps.len()];
+#+end_src 
+
+Утворимо /чергу/ (~queue~) клітинок у вигляді впорядкованої сумки (~BinaryHeap~) пар поточної відстані
+клітинки і її індексу, при цьому пари впорядковуються за зростанням поточної відстані. Спочатку черга
+містить лише початкову клітинку ~0~ з відстанню ~0~.
+
+#+begin_src rust :noweb-ref task909:Декларації
+  use std::collections::BinaryHeap;
+  use std::cmp::Reverse;
+#+end_src 
+
+#+begin_src rust :noweb-ref task909:Дії
+  let mut queue = BinaryHeap::from([(Reverse(0), 0)]);
+#+end_src 
+
+Обробляємо клітинки з черги, поки вона не стане пустою.
+
+#+begin_src rust :noweb yes :noweb-ref task909:Дії
+  while let Some((Reverse(dist), cell)) = queue.pop() {
+      <<task909:Обробити-клітину>>
+  }
+#+end_src 
+
+Результатом є значення відстані для останньої клітинки.
+
+#+begin_src rust :noweb-ref task909:Дії
+  *dists.last().unwrap()
+#+end_src 
+
+* Обробка клітини
+
+Обробимо наступні клітини, які визначимо, як наступні ~6~ клітин від поточної, але не далі, ніж остання
+клітина дошки.
+
+#+begin_src rust :noweb yes :noweb-ref task909:Обробити-клітину
+  for next in cell+1..=(cell+6).min(jumps.len()-1) {
+      <<task909:Обробити-наступну-клітину>>
+  }
+#+end_src 
+
+Для наступної клітини враховуємо можливість стрибка.
+
+#+begin_src rust :noweb yes :noweb-ref task909:Обробити-наступну-клітину
+  let next = if jumps[next] >= 0 { jumps[next] as usize } else { next };
+#+end_src 
+
+Якщо відстань наступної клітини ще не встановлено (є ~-1~) або якщо нова відстань ~dist+1~ менше
+попередньої, оновлимо відстань клітини і додамо її до черги.
+
+#+begin_src rust :noweb yes :noweb-ref task909:Обробити-наступну-клітину
+  if dists[next] == -1 || dist + 1 < dists[next] {
+      dists[next] = dist + 1;
+      queue.push((Reverse(dist+1), next));
+  }
+#+end_src 
+
