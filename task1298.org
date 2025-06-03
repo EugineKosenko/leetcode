@@ -1,0 +1,147 @@
+#+title: =Leetcode=, задача =1298=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task1298.rs
+  <<task1298:Декларації>>
+
+  <<task1298:Визначення>>
+
+  pub fn max_candies(
+      status: Vec<i32>,
+      candies: Vec<i32>,
+      keys: Vec<Vec<i32>>,
+      contained_boxes: Vec<Vec<i32>>,
+      initial_boxes: Vec<i32>
+  ) -> i32 {
+      <<task1298:Дії>>
+  }
+
+  fn main() {
+      <<task1298:Отримання-даних>>
+      println!("{}", max_candies(status, candies, keys, contained_boxes, initial_boxes));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task1298:Декларації
+  use std::{env, fs, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref task1298:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let mut lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+  
+  let status = lines.next().unwrap()
+      .trim_matches(|c| c == '[' || c == ']')
+      .split(", ")
+      .map(|n| n.parse().unwrap())
+      .collect();
+
+  let candies = lines.next().unwrap()
+      .trim_matches(|c| c == '[' || c == ']')
+      .split(", ")
+      .map(|n| n.parse().unwrap())
+      .collect();
+
+  let keys = lines.next().unwrap()
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split("], [")
+      .map(|list| {
+          let list = list.trim_matches(|c| c == '[' || c == ']');
+          if list.is_empty() { Vec::new() } else {
+              list.split(", ")
+                  .map(|item| item.parse().unwrap())
+                  .collect()
+          }
+      })
+      .collect();
+
+  let contained_boxes = lines.next().unwrap()
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split("], [")
+      .map(|list| {
+          let list = list.trim_matches(|c| c == '[' || c == ']');
+          if list.is_empty() { Vec::new() } else {
+              list.split(", ")
+                  .map(|item| item.parse().unwrap())
+                  .collect()
+          }
+      })
+      .collect();
+
+  let initial_boxes = lines.next().unwrap()
+      .trim_matches(|c| c == '[' || c == ']')
+      .split(", ")
+      .map(|n| n.parse().unwrap())
+      .collect();
+#+end_src
+
+* Пошук рішення
+
+Створимо перелік ключів у вигляді невпорядкованої множини (~HashSet~). Спочатку цей перелік пустий.
+
+#+begin_src rust :noweb-ref task1298:Декларації
+  use std::collections::HashSet;
+#+end_src 
+
+#+begin_src rust :noweb-ref task1298:Дії
+  let mut kset = HashSet::new();
+#+end_src 
+
+Створимо окремо два переліка, закритих та відкритих скриньок. Відкриті скриньки утворюють чергу
+обробки. При створенні переліков розподіляємо джерело початкових скриньок.
+
+#+begin_src rust :noweb-ref task1298:Дії
+  let (mut closed, mut opened) = initial_boxes.into_iter()
+      .fold((Vec::new(), Vec::new()), |(mut closed, mut opened), bx| {
+          if status[bx as usize] == 1 { opened.push(bx as usize) } else { closed.push(bx as usize) };
+          (closed, opened)
+      });
+#+end_src 
+
+При пошуку рішення обробляємо усі відкриті скриньки у будь-якому порядку.
+
+#+begin_src rust :noweb yes :noweb-ref task1298:Дії
+  let mut result = 0;
+  while let Some(bx) = opened.pop() {
+      <<task1298:Обробити-скриньку>>
+  }
+  result
+#+end_src 
+
+Забираємо усі цукерки зі скриньки.
+
+#+begin_src rust :noweb yes :noweb-ref task1298:Обробити-скриньку
+  result += candies[bx];
+#+end_src 
+
+Додаємо ключі зі скриньки до множини ключів.
+
+#+begin_src rust :noweb yes :noweb-ref task1298:Обробити-скриньку
+  for &k in &keys[bx] { kset.insert(k as usize); }
+#+end_src
+
+Розподіляємо нові скринькі.
+
+#+begin_src rust :noweb yes :noweb-ref task1298:Обробити-скриньку
+  for &b in &contained_boxes[bx] {
+      if status[b as usize] == 1 { opened.push(b as usize); } else { closed.push(b as usize); }
+  }
+#+end_src 
+
+Відкриємо закриті скриньки за допомогою наявних ключів. Тут простіше побудувати перелік закритих скриньок
+заново.
+
+#+begin_src rust :noweb yes :noweb-ref task1298:Обробити-скриньку
+  closed = closed.into_iter()
+      .filter_map(|b| if kset.contains(&b) { opened.push(b); None } else { Some(b) })
+      .collect();
+#+end_src 
+

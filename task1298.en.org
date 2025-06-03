@@ -1,0 +1,145 @@
+#+title: =Leetcode=, task =1298=
+
+* Main File
+
+#+begin_src rust :noweb yes :tangle src/bin/task1298.rs
+  <<task1298:Declarations>>
+
+  <<task1298:Definitions>>
+
+  pub fn max_candies(
+      status: Vec<i32>,
+      candies: Vec<i32>,
+      keys: Vec<Vec<i32>>,
+      contained_boxes: Vec<Vec<i32>>,
+      initial_boxes: Vec<i32>
+  ) -> i32 {
+      <<task1298:Actions>>
+  }
+
+  fn main() {
+      <<task1298:Data-Input>>
+      println!("{}", max_candies(status, candies, keys, contained_boxes, initial_boxes));
+  }
+#+end_src
+
+* Data Input
+
+#+begin_src rust :noweb-ref task1298:Declarations
+  use std::{env, fs, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref task1298:Data-Input
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let mut lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+  
+  let status = lines.next().unwrap()
+      .trim_matches(|c| c == '[' || c == ']')
+      .split(", ")
+      .map(|n| n.parse().unwrap())
+      .collect();
+
+  let candies = lines.next().unwrap()
+      .trim_matches(|c| c == '[' || c == ']')
+      .split(", ")
+      .map(|n| n.parse().unwrap())
+      .collect();
+
+  let keys = lines.next().unwrap()
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split("], [")
+      .map(|list| {
+          let list = list.trim_matches(|c| c == '[' || c == ']');
+          if list.is_empty() { Vec::new() } else {
+              list.split(", ")
+                  .map(|item| item.parse().unwrap())
+                  .collect()
+          }
+      })
+      .collect();
+
+  let contained_boxes = lines.next().unwrap()
+      .strip_prefix('[').unwrap()
+      .strip_suffix(']').unwrap()
+      .split("], [")
+      .map(|list| {
+          let list = list.trim_matches(|c| c == '[' || c == ']');
+          if list.is_empty() { Vec::new() } else {
+              list.split(", ")
+                  .map(|item| item.parse().unwrap())
+                  .collect()
+          }
+      })
+      .collect();
+
+  let initial_boxes = lines.next().unwrap()
+      .trim_matches(|c| c == '[' || c == ']')
+      .split(", ")
+      .map(|n| n.parse().unwrap())
+      .collect();
+#+end_src
+
+* Finding Solution
+
+Create a set of keys using HashSet. Initially, this set is empty.
+
+#+begin_src rust :noweb-ref task1298:Declarations
+  use std::collections::HashSet;
+#+end_src 
+
+#+begin_src rust :noweb-ref task1298:Actions
+  let mut kset = HashSet::new();
+#+end_src 
+
+Create two separate lists for closed and open boxes. Open boxes form a processing queue.
+When creating the lists, we distribute the initial boxes.
+
+#+begin_src rust :noweb-ref task1298:Actions
+  let (mut closed, mut opened) = initial_boxes.into_iter()
+      .fold((Vec::new(), Vec::new()), |(mut closed, mut opened), bx| {
+          if status[bx as usize] == 1 { opened.push(bx as usize) } else { closed.push(bx as usize) };
+          (closed, opened)
+      });
+#+end_src 
+
+Process all open boxes in any order during the solution search.
+
+#+begin_src rust :noweb yes :noweb-ref task1298:Actions
+  let mut result = 0;
+  while let Some(bx) = opened.pop() {
+      <<task1298:Process-Box>>
+  }
+  result
+#+end_src 
+
+Collect all candies from the box.
+
+#+begin_src rust :noweb yes :noweb-ref task1298:Process-Box
+  result += candies[bx];
+#+end_src 
+
+Add keys from the box to the key set.
+
+#+begin_src rust :noweb yes :noweb-ref task1298:Process-Box
+  for &k in &keys[bx] { kset.insert(k as usize); }
+#+end_src
+
+Distribute new boxes.
+
+#+begin_src rust :noweb yes :noweb-ref task1298:Process-Box
+  for &b in &contained_boxes[bx] {
+      if status[b as usize] == 1 { opened.push(b as usize); } else { closed.push(b as usize); }
+  }
+#+end_src 
+
+Open closed boxes using available keys. Here it's simpler to rebuild the list of closed boxes.
+
+#+begin_src rust :noweb yes :noweb-ref task1298:Process-Box
+  closed = closed.into_iter()
+      .filter_map(|b| if kset.contains(&b) { opened.push(b); None } else { Some(b) })
+      .collect();
+#+end_src 
