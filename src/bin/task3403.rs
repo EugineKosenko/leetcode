@@ -31,8 +31,8 @@ mod tests {
 pub fn answer_string(word: String, num_friends: i32) -> String {
     let n = word.len();
     let m = num_friends as usize;
-    (0..if m == 1 { 1 } else { n })
-        .map(|i| &word[i..n.min(i+n-m+1)]).max().unwrap().to_string()
+    if m == 1 { return word; }
+    (0..n).map(|i| &word[i..n.min(i+n-m+1)]).max().unwrap().to_string()
 }
 
 fn main() {

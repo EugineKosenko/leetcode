@@ -1,6 +1,6 @@
-#+title: =Leetcode=, task =3403=
+#+title: =Leetcode=, problem =3403=
 
-* Main File
+* Main file
 
 #+begin_src rust :noweb yes :tangle src/bin/task3403.rs
   <<task3403:Declarations>>
@@ -12,18 +12,19 @@
   }
 
   fn main() {
-      <<task3403:Data-Input>>
+      <<task3403:Data-input>>
       println!("{}", answer_string(word, num_friends));
   }
+
 #+end_src
 
-* Data Input
+* Data input
 
 #+begin_src rust :noweb-ref task3403:Declarations
   use std::env;
 #+end_src
 
-#+begin_src rust :noweb-ref task3403:Data-Input
+#+begin_src rust :noweb-ref task3403:Data-input
   let args: Vec<String> = env::args().collect();
   let word = args[1].clone();
   let num_friends = args[2].parse().unwrap();
@@ -38,13 +39,18 @@ For convenience, let's denote the string length as ~n~ and the number of friends
 
 * Actions
 
-For indices ~i~, we iterate through all fragments ~i..n.min(i+n-m+1)~. Interestingly, for the special case
-~m=1~, we can only use ~i=0~, since for one player it's impossible to split the source into multiple
-fragments. If ~m>1~, we need to iterate through all ~i~ from ~0~ to ~n~.
+In the special case where ~m=1~, it's impossible to split the source at all, so we simply return the source as
+the result. This case is verified in the [[id:bd0d3ecf-7582-4974-bff5-8b04184fb778]["Solo"]] test.
 
 #+begin_src rust :noweb-ref task3403:Actions
-  (0..if m == 1 { 1 } else { n })
-      .map(|i| &word[i..n.min(i+n-m+1)]).max().unwrap().to_string()
+  if m == 1 { return word; }
+#+end_src 
+
+For all indices ~i~ from ~0~ to ~n-1~, we iterate through all fragments with index range
+~i..n.min(i+n-m+1)~.
+
+#+begin_src rust :noweb-ref task3403:Actions
+  (0..n).map(|i| &word[i..n.min(i+n-m+1)]).max().unwrap().to_string()
 #+end_src 
 
 * Testing
@@ -58,7 +64,7 @@ fragments. If ~m>1~, we need to iterate through all ~i~ from ~0~ to ~n~.
   }
 #+end_src 
 
-** "Hard" Data
+** "Hard" data
 
 This example is for the longest possible string.
 
@@ -75,8 +81,8 @@ This example is for the longest possible string.
 
 ** "Pair"
 
-An interesting case that fails when we only iterate through distributions for the first ~m~ values of the
-initial index ~i~.
+An interesting variant that doesn't work when we only iterate through distributions for the first ~m~ values of the initial
+index ~i~.
 
 #+begin_src rust :noweb-ref task3403:Tests
   #[test]
@@ -89,9 +95,12 @@ initial index ~i~.
 #+end_src 
 
 ** "Solo"
+:PROPERTIES:
+:ID:       bd0d3ecf-7582-4974-bff5-8b04184fb778
+:END:
 
-In this case, we cannot choose the largest string ~"h"~ because that would mean the source was split into
-more than one substring.
+In this variant, we cannot choose the largest string ~"h"~ because that would mean the source was
+split into more than one substring.
 
 #+begin_src rust :noweb-ref task3403:Tests
   #[test]
