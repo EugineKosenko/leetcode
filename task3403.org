@@ -1,0 +1,106 @@
+#+title: =Leetcode=, задача =3403=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task3403.rs
+  <<task3403:Декларації>>
+
+  <<task3403:Визначення>>
+
+  pub fn answer_string(word: String, num_friends: i32) -> String {
+      <<task3403:Дії>>
+  }
+
+  fn main() {
+      <<task3403:Отримання-даних>>
+      println!("{}", answer_string(word, num_friends));
+  }
+
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task3403:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task3403:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let word = args[1].clone();
+  let num_friends = args[2].parse().unwrap();
+#+end_src
+
+Для зручності позначимо довжину рядка як ~n~, а кількість друзів як ~m~.
+
+#+begin_src rust :noweb-ref task3403:Дії
+  let n = word.len();
+  let m = num_friends as usize;
+#+end_src
+
+* Дії
+
+Для індексів ~i~ перебираємо усі фрагменти ~i..n.min(i+n-m+1)~. Цікавим є те, що для особливого випадка
+~m=1~ ми можемо використовувати тільки ~i=0~, оскільки для одного гравця неможливо розбити джерело на
+декілька фрагментів. Якщо ж ~m>1~, то треба перебрати усі ~i~ від ~0~ до ~n~.
+
+#+begin_src rust :noweb-ref task3403:Дії
+  (0..if m == 1 { 1 } else { n })
+      .map(|i| &word[i..n.min(i+n-m+1)]).max().unwrap().to_string()
+#+end_src 
+
+* Тестування
+
+#+begin_src rust :noweb yes :noweb-ref task3403:Визначення
+  #[cfg(test)]
+  mod tests {
+      use super::*;
+
+      <<task3403:Тести>>
+  }
+#+end_src 
+
+** "Важкі" дані
+
+Цей приклад для найдовшого можливого рядка.
+
+#+begin_src rust :noweb-ref task3403:Тести
+  #[test]
+  fn test_long_string() {
+      let word = "a".repeat(5000);
+      let num_friends = 2500;
+      let result = answer_string(word, num_friends);
+      assert_eq!(result.len(), 2501);
+      assert!(result.chars().all(|c| c == 'a'));
+  }
+#+end_src 
+
+** "Пара"
+
+Цікавий варіант, який не працює, коли ми перебираємо тільки розподіли для перших ~m~ значень початкового
+індекса ~i~.
+
+#+begin_src rust :noweb-ref task3403:Тести
+  #[test]
+  fn test_pair() {
+      let word = "aann".to_string();
+      let num_friends = 2;
+      let result = answer_string(word, num_friends);
+      assert_eq!(result.as_str(), "nn");
+  }
+#+end_src 
+
+** "Соло"
+
+В цьому варіанті ми не можемо обрати найбільший рядок ~"h"~, оскільки це означає, що джерело було
+розібрано більше, ніж на один підрядок.
+
+#+begin_src rust :noweb-ref task3403:Тести
+  #[test]
+  fn test_solo() {
+      let word = "gh".to_string();
+      let num_friends = 1;
+      let result = answer_string(word, num_friends);
+      assert_eq!(result.as_str(), "gh");
+  }
+#+end_src 
+
