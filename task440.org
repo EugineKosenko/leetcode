@@ -1,0 +1,191 @@
+#+title: =Leetcode=, задача =440=
+
+Ця задача є іншим варіантом задачі [[file:task386.org][386]], але замість вектора результатом є число.
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task440.rs
+  #![recursion_limit="1024"]
+
+  <<task440:Декларації>>
+
+  <<task440:Визначення>>
+
+  pub fn find_kth_number(n: i32, k: i32) -> i32 {
+      <<task440:Дії>>
+  }
+
+  fn main() {
+      <<task440:Отримання-даних>>
+      println!("{}", find_kth_number(n, k));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task440:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task440:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let n = args[1].parse().unwrap();
+  let k = args[2].parse().unwrap();
+#+end_src
+
+* Пошук рішення
+
+Шукатимемо рішення рекурсивно за допомогою функції ~find~, яка приймає межу ~n~, порядковий номер ~k~ і
+поточне значення ~m~, повертаючи результат. Таким чином, достатньо почати з пустого результата і
+викликати його послідовно для усіх цифр від ~1~ до ~9~, оскільки число не може починатися з ~0~.
+
+Зауважимо, що при черговому виклику ми можемо не досягти необхідного значення, тоді ми повертаємо ознаку
+невдачі у вигляді спеціального значення ~0~. При цьому, однак, очевидно, що рішення завжди є, достатньо
+знайти перше ненульове значення.
+
+При обході використовуємо "наскрізну" нумерацію чисел за допомогою індекса ~i~, який почнеться з ~0~ і
+буде "просуватися" вперед при обході дерева, поки його значення не співпаде з ~k~.
+
+#+begin_src rust :noweb yes :noweb-ref task440:Дії
+  let mut i = 0;
+  (1..=9).map(|m| find(n, m, k, &mut i, 1)).find(|&m| m>0).unwrap()
+#+end_src
+
+Визначимо саму функцію рекурсивного пошуку.
+
+#+begin_src rust :noweb yes :noweb-ref task440:Визначення
+  fn find(n: i32, m: i32, k: i32, i: &mut i32, d: usize) -> i32 {
+      // println!("{}", d);
+      <<task440:find:Дії>>
+  }
+#+end_src
+
+Якщо поточне значення ~m~ більше ~n~, подальший перебір не має сенсу, тому повертаємо ознаку невдачі.
+
+#+begin_src rust :noweb yes :noweb-ref task440:find:Дії
+  if m > n { return 0; }
+#+end_src
+
+В іншому випадку ~m~ є значенням, що підходить, тому збільшимо його індекс ~i~.
+
+#+begin_src rust :noweb yes :noweb-ref task440:find:Дії
+  *i += 1;
+#+end_src
+
+Якщо поточний індекс ~i~ дорівнює ~k~, то ~m~ --- це результат, повертаємо його.
+
+#+begin_src rust :noweb yes :noweb-ref task440:find:Дії
+  if *i == k { return m; }
+  assert!(*i < k);
+#+end_src
+
+Виконуємо рекурсивний пошук, додаючи ще один розряд (множенням на ~10~) та перебираючи усі можливі цифри
+останнього разряду.
+
+#+begin_src rust :noweb yes :noweb-ref task440:find:Дії
+  (0..=9).map(|j| find(n, 10*m+j, k, i, d+1)).find(|&m| m>0).unwrap_or(0)
+#+end_src
+
+* Тести
+
+#+begin_src rust :noweb yes :noweb-ref task440:Визначення
+  #[cfg(test)]
+  mod tests {
+      use super::*;
+
+      <<task440:tests:Визначення>>
+  }
+#+end_src
+
+** Базові тести
+
+Перевіряємо основні випадки пошуку =k=-того числа в лексикографічному порядку.
+
+#+begin_src rust :noweb yes :noweb-ref task440:tests:Визначення
+  #[test]
+  fn test_basic_1() {
+      assert_eq!(find_kth_number(13, 2), 10);
+  }
+
+  #[test]
+  fn test_basic_2() {
+      assert_eq!(find_kth_number(13, 5), 13);
+  }
+#+end_src
+
+** Граничні випадки
+
+Перевіряємо пошук першого та останнього числа в послідовності.
+
+#+begin_src rust :noweb yes :noweb-ref task440:tests:Визначення
+  #[test]
+  fn test_first_number() {
+      assert_eq!(find_kth_number(20, 1), 1);
+  }
+
+  #[test]
+  fn test_last_number() {
+      assert_eq!(find_kth_number(20, 20), 9);
+  }
+#+end_src
+
+** Тести на діапазони різних розмірів
+
+Перевіряємо роботу функції з різними розмірами діапазонів - від одного елемента до великих
+послідовностей.
+
+#+begin_src rust :noweb yes :noweb-ref task440:tests:Визначення
+  #[test]
+  fn test_middle_number() {
+      assert_eq!(find_kth_number(100, 10), 17);
+  }
+
+  #[test]
+  fn test_small_range() {
+      assert_eq!(find_kth_number(2, 2), 2);
+  }
+
+  #[test]
+  fn test_single_number() {
+      assert_eq!(find_kth_number(1, 1), 1);
+  }
+#+end_src
+
+** Тести на великі значення =k=
+
+Перевіряємо коректність роботи функції при пошуку елементів з великими порядковими номерами.
+
+#+begin_src rust :noweb yes :noweb-ref task440:tests:Визначення
+  #[test]
+  fn test_larger_k() {
+      assert_eq!(find_kth_number(100, 90), 9);
+  }
+#+end_src
+
+** Тести на великі числа
+
+Перевіряємо коректність роботи функції на наборі великих чисел. У кожному тесті перше число
+використовується як межа ~n~, а друге --- як порядковий номер ~k~. Такий підхід дозволяє перевірити
+роботу алгоритму на реальних даних великої розмірності.
+
+#+begin_src rust :noweb yes :noweb-ref task440:tests:Визначення
+  #[test]
+  fn test_large_numbers() {
+      let test_cases = vec![
+          (626615575, 366297423),  // Перша пара
+          (724201123, 419746578),  // Друга пара
+          (212276511, 161357227),  // Третя пара
+          (760772781, 749696464),  // Четверта пара
+          (174314809, 101386962),  // П'ята пара
+          (156187893, 4429469),    // Шоста пара
+          (862411591, 494068084),  // Сьома пара
+          (12901357, 201607)       // Восьма пара
+      ];
+
+      for (n, k) in test_cases {
+          let result = find_kth_number(n, k);
+          assert!(result > 0 && result <= n,
+              "Помилка для n={}, k={}, результат={}", n, k, result);
+      }
+  }
+#+end_src 
