@@ -1,0 +1,152 @@
+#+title: =Leetcode=, task =386=
+
+* Problem Description
+
+The function ~lexical_order~ takes an integer ~n~ and returns all numbers in the range ~[1, n]~ in
+lexicographical order. Lexicographical order is the order in which numbers would appear if they were
+strings. For example, for ~n=13~, the result would be ~[1,10,11,12,13,2,3,4,5,6,7,8,9]~.
+
+* Main File
+
+#+begin_src rust :noweb yes :tangle src/bin/task386.rs
+  <<task386:Declarations>>
+
+  <<task386:Definitions>>
+
+  pub fn lexical_order(n: i32) -> Vec<i32> {
+      <<task386:Actions>>
+  }
+
+  fn main() {
+      <<task386:Data-Input>>
+      println!("{:?}", lexical_order(n));
+  }
+#+end_src
+
+* Data Input
+
+#+begin_src rust :noweb-ref task386:Declarations
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task386:Data-Input
+  let args: Vec<String> = env::args().collect();
+  let n = args[1].parse().unwrap();
+#+end_src
+
+* Solution Approach
+
+We will solve this recursively using a ~find~ function that takes the limit ~n~ and the current value ~i~,
+filling the ~result~ sequentially with found values. Thus, it's sufficient to start with an empty result and
+call it sequentially for all digits from ~1~ to ~9~, since a number cannot start with ~0~.
+
+#+begin_src rust :noweb yes :noweb-ref task386:Actions
+  let mut result = Vec::new();
+  for i in 1..=9 { find(n, i, &mut result); }
+  result
+#+end_src
+
+Let's define the recursive search function itself.
+
+#+begin_src rust :noweb yes :noweb-ref task386:Definitions
+  fn find(n: i32, i: i32, result: &mut Vec<i32>) {
+      <<task386:find:Actions>>
+  }
+#+end_src
+
+If the current value ~i~ is greater than ~n~, further enumeration makes no sense, so we just terminate.
+
+#+begin_src rust :noweb yes :noweb-ref task386:find:Actions
+  if i > n { return; }
+#+end_src
+
+Add the current value ~i~ to ~result~.
+
+#+begin_src rust :noweb yes :noweb-ref task386:find:Actions
+  result.push(i);
+#+end_src
+
+Perform recursive search by adding another digit (multiplying by ~10~) and iterating through all possible
+digits for the last position.
+
+#+begin_src rust :noweb yes :noweb-ref task386:find:Actions
+  for j in 0..=9 { find(n, 10*i+j, result); }
+#+end_src
+
+* Tests
+
+#+begin_src rust :noweb yes :noweb-ref task386:Definitions
+  #[cfg(test)]
+  mod tests {
+      use super::*;
+
+      #[test]
+      fn test_basic_1() {
+          let n = 13;
+          let result = lexical_order(n);
+          assert_eq!(result, vec![1,10,11,12,13,2,3,4,5,6,7,8,9]);
+      }
+
+      #[test]
+      fn test_basic_2() {
+          let n = 2;
+          let result = lexical_order(n);
+          assert_eq!(result, vec![1,2]);
+      }
+
+      #[test]
+      fn test_single() {
+          let n = 1;
+          let result = lexical_order(n);
+          assert_eq!(result, vec![1]);
+      }
+
+      #[test]
+      fn test_twenty() {
+          let n = 20;
+          let result = lexical_order(n);
+          assert_eq!(result, vec![1,10,11,12,13,14,15,16,17,18,19,2,20,3,4,5,6,7,8,9]);
+      }
+
+      #[test]
+      fn test_hundred() {
+          let n = 100;
+          let result = lexical_order(n);
+          let expected: Vec<i32> = vec![
+              1,10,100,11,12,13,14,15,16,17,18,19,2,20,21,22,23,24,25,26,27,28,29,
+              3,30,31,32,33,34,35,36,37,38,39,4,40,41,42,43,44,45,46,47,48,49,
+              5,50,51,52,53,54,55,56,57,58,59,6,60,61,62,63,64,65,66,67,68,69,
+              7,70,71,72,73,74,75,76,77,78,79,8,80,81,82,83,84,85,86,87,88,89,
+              9,90,91,92,93,94,95,96,97,98,99
+          ];
+          assert_eq!(result, expected);
+      }
+
+      // fn test_from_file_impl(filename: &str) {
+      //     use std::fs::File;
+      //     use std::io::{BufRead, BufReader};
+
+      //     let file = File::open(filename).unwrap();
+      //     let mut lines = BufReader::new(file).lines();
+          
+      //     let n: i32 = lines.next().unwrap().unwrap().parse().unwrap();
+      //     let expected: Vec<i32> = lines.next().unwrap().unwrap()
+      //         .split(',')
+      //         .map(|s| s.parse().unwrap())
+      //         .collect();
+          
+      //     let result = lexical_order(n);
+      //     assert_eq!(result, expected);
+      // }
+
+      // #[test]
+      // fn test_from_file_1() {
+      //     test_from_file_impl("./task386_1.txt");
+      // }
+
+      // #[test]
+      // fn test_from_file_2() {
+      //     test_from_file_impl("./task386_2.txt");
+      // }
+  }
+#+end_src 
