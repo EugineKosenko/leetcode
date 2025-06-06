@@ -1,0 +1,174 @@
+#+title: =Leetcode=, problem =3170=
+
+* Problem Description
+
+The function ~clear_stars~ receives a string ~s~ consisting of lowercase English letters and asterisks
+(~*~). Each asterisk removes the smallest of the previous characters, if it exists. The function returns
+the resulting string after processing all asterisks.
+
+* Main File
+
+#+begin_src rust :noweb yes :tangle src/bin/task3170.rs
+  <<task3170:Declarations>>
+
+  <<task3170:Definitions>>
+
+  pub fn clear_stars(s: String) -> String {
+      <<task3170:Actions>>
+  }
+
+  fn main() {
+      <<task3170:Data-Input>>
+      println!("{}", clear_stars(s));
+  }
+#+end_src
+
+* Data Input
+
+#+begin_src rust :noweb-ref task3170:Declarations
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task3170:Data-Input
+  let args: Vec<String> = env::args().collect();
+  let s = args[1].clone();
+#+end_src
+
+* Solution Approach
+
+We create an ordered bag ~queue~ (~BinaryHeap~) where we store all characters except asterisks
+along with their positions. We order the pairs so that the character value increases while its position
+decreases.
+
+#+begin_src rust :noweb yes :noweb-ref task3170:Declarations
+  use std::collections::BinaryHeap;
+  use std::cmp::Reverse;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task3170:Actions
+  let mut queue = BinaryHeap::new();
+#+end_src
+
+We process each character of the source string ~s~ in sequence. If the current character is an asterisk,
+we remove the smallest previous character; otherwise, we add the current character to the queue with its
+current index.
+
+#+begin_src rust :noweb yes :noweb-ref task3170:Actions
+  for (i, c) in s.bytes().enumerate() {
+      if c == b'*' {
+          <<task3170:Remove-Character>>
+      } else {
+          queue.push((Reverse(c), i));
+      }
+  }
+#+end_src
+
+Finally, we iterate through the queue in any order and fill the result. For optimization, we don't change
+the character indices during removal, so the result must initially contain space for all possible
+indices. Then we remove all "empty" spaces (with ~0~) to compress the result.
+
+#+begin_src rust :noweb yes :noweb-ref task3170:Actions
+  let mut result = vec![0; s.len()];
+  for (Reverse(c), i) in queue { result[i] = c; }
+  let result = result.into_iter().filter(|&c| c != 0).collect();
+  String::from_utf8(result).unwrap()
+#+end_src
+
+* Character Removal
+
+Choosing a character for removal is simple - it's the first character in the queue if it exists. However,
+removing a character from the queue is non-trivial since we would need to decrease the indices of all elements
+that come after the chosen character. However, the ordered queue doesn't allow in-place modifications.
+
+Therefore, for efficiency, we leave the indices unchanged, simply popping the next character from the queue.
+
+#+begin_src rust :noweb yes :noweb-ref task3170:Remove-Character
+  queue.pop();
+#+end_src
+
+* Tests
+
+#+begin_src rust :noweb yes :noweb-ref task3170:Definitions
+  #[cfg(test)]
+  mod tests {
+      use super::*;
+
+      #[test]
+      fn test_basic_1() {
+          let s = "leet**cod*e".to_string();
+          let result = clear_stars(s);
+          assert_eq!(result, "ltode");
+      }
+
+      #[test]
+      fn test_basic_2() {
+          let s = "erase*****".to_string();
+          let result = clear_stars(s);
+          assert_eq!(result, "");
+      }
+
+      #[test]
+      fn test_no_stars() {
+          let s = "abcde".to_string();
+          let result = clear_stars(s);
+          assert_eq!(result, "abcde");
+      }
+
+      #[test]
+      fn test_only_stars() {
+          let s = "****".to_string();
+          let result = clear_stars(s);
+          assert_eq!(result, "");
+      }
+
+      #[test]
+      fn test_alternating() {
+          let s = "a*b*c*d*e*".to_string();
+          let result = clear_stars(s);
+          assert_eq!(result, "");
+      }
+
+      #[test]
+      fn test_consecutive_stars() {
+          let s = "abc***de**f".to_string();
+          let result = clear_stars(s);
+          assert_eq!(result, "f");
+      }
+
+      #[test]
+      fn test_stars_at_start() {
+          let s = "**abc".to_string();
+          let result = clear_stars(s);
+          assert_eq!(result, "abc");
+      }
+
+      fn test_from_file_impl(filename: &str) {
+          use std::fs::File;
+          use std::io::{BufRead, BufReader};
+
+          let file = File::open(filename).unwrap();
+          let mut lines = BufReader::new(file).lines();
+          
+          let input = lines.next().unwrap().unwrap();
+          let expected = lines.next().unwrap().unwrap();
+          
+          let result = clear_stars(input);
+          assert_eq!(result, expected);
+      }
+
+      #[test]
+      fn test_from_file_1() {
+          test_from_file_impl("./task3170_1.txt");
+      }
+
+      #[test]
+      fn test_from_file_2() {
+          test_from_file_impl("./task3170_2.txt");
+      }
+
+      #[test]
+      fn test_from_file_3() {
+          test_from_file_impl("./task3170_3.txt");
+      }
+  }
+#+end_src 
