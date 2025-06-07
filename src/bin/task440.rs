@@ -2,13 +2,11 @@
 
 use std::env;
 
-fn find(n: i32, m: i32, k: i32, i: &mut i32, d: usize) -> i32 {
-    // println!("{}", d);
+fn find(n: u64, m: u64, k: u64, i: &mut u64) -> u64 {
     if m > n { return 0; }
     *i += 1;
     if *i == k { return m; }
-    assert!(*i < k);
-    (0..=9).map(|j| find(n, 10*m+j, k, i, d+1)).find(|&m| m>0).unwrap_or(0)
+    (0..=9).map(|j| find(n, 10*m+j, k, i)).find(|&m| m>0).unwrap_or(0)
 }
 #[cfg(test)]
 mod tests {
@@ -53,7 +51,7 @@ mod tests {
     #[test]
     fn test_large_numbers() {
         let test_cases = vec![
-            //(626615575, 366297423),  // Перша пара
+            (626615575, 366297423),  // Перша пара
             (724201123, 419746578),  // Друга пара
             (212276511, 161357227),  // Третя пара
             (760772781, 749696464),  // Четверта пара
@@ -73,7 +71,7 @@ mod tests {
 
 pub fn find_kth_number(n: i32, k: i32) -> i32 {
     let mut i = 0;
-    (1..=9).map(|m| find(n, m, k, &mut i, 1)).find(|&m| m>0).unwrap()
+    (1..=9).map(|m| find(n as u64, m, k as u64, &mut i)).find(|&m| m>0).unwrap() as i32
 }
 
 fn main() {
