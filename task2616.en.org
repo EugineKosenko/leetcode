@@ -1,0 +1,225 @@
+#+title: =Leetcode=, problem =2616=
+
+* Main file
+
+#+begin_src rust :noweb yes :tangle src/bin/task2616.rs
+  <<task2616:Declarations>>
+
+  <<task2616:Definitions>>
+
+  pub fn minimize_max(mut nums: Vec<i32>, p: i32) -> i32 {
+      <<task2616:Actions>>
+  }
+
+  fn main() {
+      <<task2616:Data-Acquisition>>
+      println!("{}", minimize_max(nums, p));
+  }
+#+end_src
+
+* Data Acquisition
+
+#+begin_src rust :noweb-ref task2616:Declarations
+  use std::{env, fs};
+#+end_src
+
+#+begin_src rust :noweb-ref task2616:Data-Acquisition
+  let args: Vec<String> = env::args().collect();
+  let content = fs::read_to_string(&args[1]).unwrap();
+  let lines: Vec<&str> = content.lines().collect();
+  
+  let nums = lines[0]
+      .trim_matches(|c| c == '[' || c == ']')
+      .split(',')
+      .map(|s| s.trim().parse().unwrap())
+      .collect();      
+  let p = lines[1].parse().unwrap();
+#+end_src
+
+Let's denote the source size as ~n~.
+
+#+begin_src rust :noweb-ref task2616:Actions
+  let n = nums.len();
+#+end_src
+
+* Source Sorting
+
+For finding the solution, the source ~nums~ needs to be sorted.
+
+#+begin_src rust :noweb-ref task2616:Actions
+  nums.sort();
+#+end_src
+
+* Binary Search
+
+#+begin_src rust :noweb yes :noweb-ref task2616:Actions
+  let mut l = 0;
+  let mut h = nums[n-1] - nums[0];
+  while l < h {
+      let m = (l+h)/2;
+      <<task2616:Determine-Pair-Count>>
+      if c < p { l = m+1 } else { h = m }
+  }
+  h
+#+end_src
+
+To determine the sufficient number of pairs ~c~, we iterate through all consecutive pairs of elements with indices ~i~ and
+~i+1~, since they form the smallest possible difference. It's important that no index is used more than once.
+Therefore, if a pair is suitable, we skip both indices, otherwise --- only one.
+
+The loop ends when we either reach the end of the source or find a sufficient number of pairs.
+
+#+begin_src rust :noweb yes :noweb-ref task2616:Determine-Pair-Count
+  let mut c = 0;
+  let mut i = 0;
+  while i < n-1 && c < p {
+      if nums[i+1] - nums[i] <= m { c += 1; i += 2; } else { i += 1; }
+  }
+#+end_src
+
+** COMMENT Determining Sufficient Number of Pairs
+
+The ~is_enough~ function counts the number ~c~ (/c/-ount) of pairs in the source ~nums~ where the difference is not greater than
+the threshold ~d~ (/d/-ifference), and returns success (~true~) if there are at least ~p~ such pairs.
+
+#+begin_src rust :noweb yes :noweb-ref task2616:Definitions
+  fn is_enough(nums: &Vec<i32>, d: i32, p: usize) -> bool {
+      <<task2616:is-enough:Actions>>
+  }
+#+end_src
+
+* COMMENT Dynamic Programming
+
+Let's define ~p~ as an index.
+
+#+begin_src rust :noweb-ref task2616:Actions
+  let p = p as usize;
+#+end_src
+
+The solution is found recursively in the ~find~ function using dynamic programming. The matrix
+~dp[i][x]~ contains the result for the remaining source after index ~i~ for the remaining ~x~ pairs. The result of the problem
+is the value ~dp[0][p]~. First, we fill ~dp~ with a special value ~-1~.
+
+It's important that cases ~x=0~, ~i=n-1~, and ~i=n-2~ are special, so for efficiency, the matrix ~dp~ has
+a reduced size ~(n-2)x(p-1)~. Therefore, we handle the special case ~p=0~ separately (the result here is ~0~).
+
+#+begin_src rust :noweb-ref task2616:Actions
+  if p == 0 { return 0; }
+  let mut dp = vec![vec![-1; p]; n-2];
+  find(&nums, &mut dp, 0, p)
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref task2616:Definitions
+  fn find(nums: &Vec<i32>, dp: &mut Vec<Vec<i32>>, i: usize, x: usize) -> i32 {
+      let n = nums.len();
+      <<task2616:find:Actions>>
+  }
+#+end_src
+
+For ~x=0~, the result is ~0~.
+
+#+begin_src rust :noweb-ref task2616:find:Actions
+  if x == 0 { return 0; }
+#+end_src
+
+For ~i=n-1~, it's impossible to form a new pair, so the result doesn't make sense. Considering the algorithm's features,
+we consider the result to be a special value ~i32::MAX~.
+
+#+begin_src rust :noweb-ref task2616:find:Actions
+  if i == n-1 { return i32::MAX; }
+#+end_src
+
+For ~i=n-2~, we have a single pair of elements ~nums[n-2]~ and ~nums[n-1]~, the difference between which determines
+the result.
+
+#+begin_src rust :noweb-ref task2616:find:Actions
+  if i == n-2 { return (nums[n-1] - nums[n-2]).abs(); }
+#+end_src
+
+If ~dp~ contains a saved solution, we return it.
+
+#+begin_src rust :noweb-ref task2616:find:Actions
+  if dp[i][x-1] > 0 { return dp[i][x-1]; }
+#+end_src
+
+We compute and save the result as a computation of minimums and maximums, as indicated in the hint.
+
+#+begin_src rust :noweb-ref task2616:find:Actions
+  dp[i][x-1] = find(nums, dp, i+1, x)
+      .min(find(nums, dp, i+2, x-1).max((nums[i] - nums[i+1]).abs()));
+  dp[i][x-1]
+#+end_src
+
+* Tests
+
+#+begin_src rust :noweb yes :noweb-ref task2616:Definitions
+  #[cfg(test)]
+  mod tests {
+      use super::*;
+
+      <<task2616:tests:Definitions>>
+  }
+#+end_src
+
+** Tests on Examples from the Problem Statement
+
+We verify the function's operation on examples given in the problem statement.
+
+#+begin_src rust :noweb yes :noweb-ref task2616:tests:Definitions
+  #[test]
+  fn test_example1() {
+      let nums = vec![10, 1, 2, 7, 1, 3];
+      let p = 2;
+      assert_eq!(minimize_max(nums, p), 1);
+  }
+
+  #[test]
+  fn test_example2() {
+      let nums = vec![4, 2, 1, 2];
+      let p = 1;
+      assert_eq!(minimize_max(nums, p), 0);
+  }
+#+end_src
+
+** Tests on Edge Cases
+
+We verify the function's behavior in special cases: empty array, array with one element,
+and the case when ~p=0~.
+
+#+begin_src rust :noweb yes :noweb-ref task2616:tests:Definitions
+  #[test]
+  fn test_edge_cases() {
+      assert_eq!(minimize_max(vec![1], 0), 0);
+      assert_eq!(minimize_max(vec![1, 2, 3], 0), 0);
+  }
+#+end_src
+
+** Tests on Large Datasets
+
+We verify the function's operation on large datasets stored in files.
+
+#+begin_src rust :noweb yes :noweb-ref task2616:tests:Definitions
+  use std::fs;
+
+  fn read_test_data(filename: &str) -> (Vec<i32>, i32) {
+      let content = fs::read_to_string(filename)
+          .expect("Error reading file");
+      let lines: Vec<&str> = content.lines().collect();
+      
+      let nums = lines[0]
+          .trim_matches(|c| c == '[' || c == ']')
+          .split(',')
+          .map(|s| s.trim().parse().unwrap())
+          .collect();      
+      
+      let p = lines[1].parse().unwrap();
+      
+      (nums, p)
+  }
+
+  #[test]
+  fn test_large_dataset() {
+      let (nums, p) = read_test_data("./task2616_1.txt");
+      let _result = minimize_max(nums, p);
+  }
+#+end_src 

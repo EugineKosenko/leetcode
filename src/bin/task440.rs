@@ -2,12 +2,6 @@
 
 use std::env;
 
-fn find(n: u64, m: u64, k: u64, i: &mut u64) -> u64 {
-    if m > n { return 0; }
-    *i += 1;
-    if *i == k { return m; }
-    (0..=9).map(|j| find(n, 10*m+j, k, i)).find(|&m| m>0).unwrap_or(0)
-}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -70,8 +64,48 @@ mod tests {
 }
 
 pub fn find_kth_number(n: i32, k: i32) -> i32 {
-    let mut i = 0;
-    (1..=9).map(|m| find(n as u64, m, k as u64, &mut i)).find(|&m| m>0).unwrap() as i32
+    let mut n = n as u32;
+    let mut k = k as u32;
+    let ln = (n as f64).log10().floor() as u32 + 1;
+    let mut s = (10u32.pow(ln) - 1) / 9;
+    let mut m = n;
+    let mut b = 1;
+    let mut d = 0;
+    let mut result = 1;
+    k -= 1;
+    while k > 0 {
+        if d > 9 {
+            result += k/s;
+            k -= (k/s)*s;
+            if k == 0 { return result as i32; }
+            result *= 10;
+            s /= 10;
+            k -= 1;
+            continue;
+        } else {
+            let p = s - s/10;
+            d = (n / p) % 10;
+        }
+        if s*(b + (d.max(1) - 1)) >= k {
+            d = 10;
+            result += k/s;
+            k -= (k/s)*s;
+            if k == 0 { return result as i32; }
+            result *= 10;
+            s /= 10;
+            k -= 1;
+            continue;
+        }               
+        if d > b {
+            result += d-b;
+            k -= (d-b)*s;
+        }
+        m = m - (d.max(1) - 1)*s - (9-d)*(s/10);
+        println!("m={}", m);
+        if m > k { result *= 10; k -= 1; s /= 10; m -= 1; continue; }
+        b = 0;
+    }
+    result as i32
 }
 
 fn main() {
