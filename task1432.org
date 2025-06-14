@@ -1,0 +1,109 @@
+#+title: =Leetcode=, задача =1432=
+
+* Головний файл
+
+#+begin_src rust :noweb yes :tangle src/bin/task1432.rs
+  <<task1432:Декларації>>
+
+  <<task1432:Визначення>>
+
+  pub fn max_diff(num: i32) -> i32 {
+      <<task1432:Дії>>
+  }
+
+  fn main() {
+      <<task1432:Отримання-даних>>
+      println!("{}", max_diff(num));
+  }
+#+end_src
+
+* Отримання даних
+
+#+begin_src rust :noweb-ref task1432:Декларації
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task1432:Отримання-даних
+  let args: Vec<String> = env::args().collect();
+  let num = args[1].parse().unwrap();
+#+end_src
+
+* Пошук рішення
+
+Перетворимо число-джерело на рядок.
+
+#+begin_src rust :noweb-ref task1432:Дії
+  let s = num.to_string();
+#+end_src
+
+Знайдемо першу цифру.
+
+#+begin_src rust :noweb-ref task1432:Дії
+  let d = s.chars().next().unwrap();
+#+end_src
+
+Перебираємо усі комбінації цифр, виключаючи комбінацію, де ~d~ замінюється на ~0~, оскільки така заміна
+призводить до ведучних нулів у числі.
+
+#+begin_src rust :noweb-ref task1432:Дії
+  let (mn, mx) = ('0'..='9').map(|d1| ('0'..='9').filter_map(move |d2| {
+      if d1 == d && d2 == '0' { None } else { Some((d1, d2)) }
+  })).flatten()
+      .map(|(d1, d2)|
+           s.chars().map(|d| if d == d1 { d2 } else { d })
+           .collect::<String>().parse::<i32>().unwrap())
+      .fold((i32::MAX, 0), |(mn, mx), n| (mn.min(n), mx.max(n)));
+  mx - mn
+#+end_src
+
+* Тести
+
+#+begin_src rust :noweb yes :noweb-ref task1432:Визначення
+  #[cfg(test)]
+  mod tests {
+      use super::*;
+
+      <<task1432:tests:Визначення>>
+  }
+#+end_src
+
+** Тести на прикладах з умови задачі
+
+Перевіряємо роботу функції на прикладах, наведених в умові задачі.
+
+#+begin_src rust :noweb yes :noweb-ref task1432:tests:Визначення
+  #[test]
+  fn test_example1() {
+      assert_eq!(max_diff(555), 888);
+  }
+
+  #[test]
+  fn test_example2() {
+      assert_eq!(max_diff(9), 8);
+  }
+#+end_src
+
+** Тести на граничних випадках
+
+Перевіряємо поведінку функції в особливих випадках: однозначні числа та числа з однаковими цифрами.
+
+#+begin_src rust :noweb yes :noweb-ref task1432:tests:Визначення
+  #[test]
+  fn test_edge_cases() {
+      assert_eq!(max_diff(1), 8);
+      assert_eq!(max_diff(111), 888);
+      assert_eq!(max_diff(1000), 8000);
+  }
+#+end_src
+
+** Тести на великих числах
+
+Перевіряємо роботу функції на більших числах.
+
+#+begin_src rust :noweb yes :noweb-ref task1432:tests:Визначення
+  #[test]
+  fn test_large_numbers() {
+      assert_eq!(max_diff(123456), 820000);
+      assert_eq!(max_diff(999999), 888888);
+  }
+#+end_src 

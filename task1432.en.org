@@ -1,0 +1,109 @@
+#+title: =Leetcode=, task =1432=
+
+* Main File
+
+#+begin_src rust :noweb yes :tangle src/bin/task1432.rs
+  <<task1432:Declarations>>
+
+  <<task1432:Definitions>>
+
+  pub fn max_diff(num: i32) -> i32 {
+      <<task1432:Actions>>
+  }
+
+  fn main() {
+      <<task1432:Data-Acquisition>>
+      println!("{}", max_diff(num));
+  }
+#+end_src
+
+* Data Acquisition
+
+#+begin_src rust :noweb-ref task1432:Declarations
+  use std::env;
+#+end_src
+
+#+begin_src rust :noweb-ref task1432:Data-Acquisition
+  let args: Vec<String> = env::args().collect();
+  let num = args[1].parse().unwrap();
+#+end_src
+
+* Solution Search
+
+Convert the source number to a string.
+
+#+begin_src rust :noweb-ref task1432:Actions
+  let s = num.to_string();
+#+end_src
+
+Find the first digit.
+
+#+begin_src rust :noweb-ref task1432:Actions
+  let d = s.chars().next().unwrap();
+#+end_src
+
+Iterate through all digit combinations, excluding the combination where ~d~ is replaced with ~0~, as such replacement
+leads to leading zeros in the number.
+
+#+begin_src rust :noweb-ref task1432:Actions
+  let (mn, mx) = ('0'..='9').map(|d1| ('0'..='9').filter_map(move |d2| {
+      if d1 == d && d2 == '0' { None } else { Some((d1, d2)) }
+  })).flatten()
+      .map(|(d1, d2)|
+           s.chars().map(|d| if d == d1 { d2 } else { d })
+           .collect::<String>().parse::<i32>().unwrap())
+      .fold((i32::MAX, 0), |(mn, mx), n| (mn.min(n), mx.max(n)));
+  mx - mn
+#+end_src
+
+* Tests
+
+#+begin_src rust :noweb yes :noweb-ref task1432:Definitions
+  #[cfg(test)]
+  mod tests {
+      use super::*;
+
+      <<task1432:tests:Definitions>>
+  }
+#+end_src
+
+** Tests on Examples from Problem Statement
+
+Check the function's operation on examples provided in the problem statement.
+
+#+begin_src rust :noweb yes :noweb-ref task1432:tests:Definitions
+  #[test]
+  fn test_example1() {
+      assert_eq!(max_diff(555), 888);
+  }
+
+  #[test]
+  fn test_example2() {
+      assert_eq!(max_diff(9), 8);
+  }
+#+end_src
+
+** Tests on Edge Cases
+
+Check the function's behavior in special cases: single-digit numbers and numbers with identical digits.
+
+#+begin_src rust :noweb yes :noweb-ref task1432:tests:Definitions
+  #[test]
+  fn test_edge_cases() {
+      assert_eq!(max_diff(1), 8);
+      assert_eq!(max_diff(111), 888);
+      assert_eq!(max_diff(1000), 8000);
+  }
+#+end_src
+
+** Tests on Large Numbers
+
+Check the function's operation on larger numbers.
+
+#+begin_src rust :noweb yes :noweb-ref task1432:tests:Definitions
+  #[test]
+  fn test_large_numbers() {
+      assert_eq!(max_diff(123456), 820000);
+      assert_eq!(max_diff(999999), 888888);
+  }
+#+end_src 
